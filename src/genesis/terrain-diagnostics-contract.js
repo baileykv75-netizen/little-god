@@ -62,6 +62,7 @@
       green: greenCoverage,
       roots: rootCoverage,
       bare: bareCoverage,
+      barren: bareCoverage,
       vegetated: greenCoverage,
       rooted: rootCoverage,
     };
