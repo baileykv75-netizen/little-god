@@ -62,6 +62,7 @@ assert.equal(diagnostics.grid.cellWidth, 32);
 assert.equal(diagnostics.grid.cellHeight, 32);
 assert.equal(diagnostics.grid.cellSize, 32);
 assert.equal(diagnostics.coverage.green, 0.42);
+assert.equal(diagnostics.coverage.root, 0.37);
 assert.equal(diagnostics.coverage.roots, 0.37);
 assert.equal(diagnostics.coverage.bare, 0.31);
 assert.equal(diagnostics.coverage.barren, 0.31);
@@ -73,7 +74,7 @@ assert.equal(diagnostics.resources.averageFertility, 0.9);
 assert.equal(diagnostics.hotspots.length, 1);
 assert.equal(diagnostics.resourceBudget.grazingRemoved, 5);
 
-for (const key of ["green", "roots", "bare", "barren"]) {
+for (const key of ["green", "root", "roots", "bare", "barren"]) {
   assert.equal(typeof diagnostics.coverage[key], "number");
   assert.ok(diagnostics.coverage[key] >= 0 && diagnostics.coverage[key] <= 1);
 }
