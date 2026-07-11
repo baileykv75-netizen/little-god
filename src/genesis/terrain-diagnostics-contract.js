@@ -4,6 +4,12 @@
   const LG = window.LittleGod;
   if (!LG) throw new Error("Terrain diagnostics contract requires LittleGod core");
 
+  const asCoverage = (value, fallback) => {
+    const numeric = Number(value);
+    if (!Number.isFinite(numeric)) return fallback;
+    return Math.max(0, Math.min(1, numeric));
+  };
+
   LG.getTerrainDiagnostics = () => {
     const vegetation = typeof LG.getVegetationDiagnostics === "function"
       ? LG.getVegetationDiagnostics()
@@ -18,6 +24,9 @@
     const cellWidth = grid.cellWidth ?? 0;
     const cellHeight = grid.cellHeight ?? 0;
     const cellSize = cellWidth === cellHeight ? cellWidth : null;
+    const greenCoverage = asCoverage(vegetation?.vegetatedCoverage, 0);
+    const rootCoverage = asCoverage(vegetation?.rootCoverage, 0);
+    const bareCoverage = asCoverage(vegetation?.bareCoverage, 1);
 
     const result = {
       version: "terrain-grid-diagnostics-v1",
@@ -27,9 +36,9 @@
       cellWidth,
       cellHeight,
       cellSize,
-      vegetatedCoverage: vegetation?.vegetatedCoverage ?? 0,
-      rootCoverage: vegetation?.rootCoverage ?? 0,
-      bareCoverage: vegetation?.bareCoverage ?? 1,
+      vegetatedCoverage: greenCoverage,
+      rootCoverage,
+      bareCoverage,
       hotspots: vegetation?.hotspots ?? [],
       budget: { ...(vegetation?.budget || {}) },
       resources: {
@@ -50,9 +59,11 @@
       cellSize: result.cellSize,
     };
     result.coverage = {
-      vegetated: result.vegetatedCoverage,
-      rooted: result.rootCoverage,
-      bare: result.bareCoverage,
+      green: greenCoverage,
+      roots: rootCoverage,
+      bare: bareCoverage,
+      vegetated: greenCoverage,
+      rooted: rootCoverage,
     };
     result.resourceBudget = result.budget;
 
