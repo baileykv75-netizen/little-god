@@ -1,0 +1,175 @@
+.genesis-inspect-button {
+  width: 100%;
+  margin-bottom: 8px;
+}
+
+.genesis-inspect-button.is-active {
+  color: #fff;
+  border-color: rgba(255, 255, 255, 0.55);
+  background: linear-gradient(135deg, #496f85, #5d568e);
+  box-shadow: 0 10px 24px rgba(62, 73, 109, 0.24);
+}
+
+.genesis-inspector {
+  padding: 12px;
+  border-radius: 16px;
+  background: linear-gradient(155deg, rgba(239, 244, 242, 0.97), rgba(239, 235, 248, 0.92));
+  border: 1px solid rgba(87, 98, 121, 0.16);
+}
+
+.genesis-empty {
+  margin: 8px 0 0;
+  color: var(--muted);
+  font-size: 0.72rem;
+  line-height: 1.6;
+}
+
+.genesis-individual-head {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 10px;
+  margin-top: 8px;
+}
+
+.genesis-individual-head div {
+  display: grid;
+  gap: 2px;
+}
+
+.genesis-individual-head strong {
+  color: var(--ink);
+  font-size: 0.86rem;
+}
+
+.genesis-individual-head small {
+  color: var(--muted);
+  font-size: 0.65rem;
+}
+
+.genesis-power {
+  flex: 0 0 auto;
+  padding: 5px 8px;
+  border-radius: 999px;
+  color: #fff;
+  background: linear-gradient(135deg, #7065a5, #4f7283);
+  font-size: 0.68rem;
+  font-weight: 800;
+}
+
+.genesis-key-grid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 6px;
+  margin-top: 10px;
+}
+
+.genesis-key-grid span,
+.genesis-trait-grid span {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  min-width: 0;
+  color: var(--muted);
+  font-size: 0.65rem;
+}
+
+.genesis-key-grid span {
+  padding: 6px 7px;
+  border-radius: 9px;
+  background: rgba(255, 255, 255, 0.62);
+}
+
+.genesis-key-grid strong,
+.genesis-trait-grid strong {
+  color: var(--ink);
+  font-variant-numeric: tabular-nums;
+  white-space: nowrap;
+}
+
+.genesis-trait-group {
+  margin-top: 7px;
+  padding: 6px 8px;
+  border-radius: 10px;
+  background: rgba(255, 255, 255, 0.52);
+}
+
+.genesis-trait-group summary {
+  cursor: pointer;
+  color: #4d5e69;
+  font-size: 0.68rem;
+  font-weight: 800;
+}
+
+.genesis-trait-grid {
+  display: grid;
+  gap: 5px;
+  margin-top: 7px;
+}
+
+.genesis-population-summary {
+  display: grid;
+  gap: 4px;
+  margin-top: 9px;
+  padding-top: 8px;
+  border-top: 1px dashed rgba(77, 94, 105, 0.2);
+  color: var(--muted);
+  font-size: 0.65rem;
+}
+
+.genesis-population-summary strong {
+  color: var(--ink);
+  font-size: 0.7rem;
+}
+
+.genesis-selection-marker {
+  position: absolute;
+  z-index: 5;
+  width: 34px;
+  height: 34px;
+  border: 2px solid rgba(255, 245, 180, 0.95);
+  border-radius: 50%;
+  box-shadow: 0 0 0 5px rgba(78, 82, 127, 0.2), 0 0 18px rgba(255, 245, 180, 0.7);
+  transform: translate(-50%, -50%);
+  pointer-events: none;
+  animation: genesis-marker-pulse 1.4s ease-in-out infinite;
+}
+
+@keyframes genesis-marker-pulse {
+  0%, 100% { transform: translate(-50%, -50%) scale(0.92); opacity: 0.72; }
+  50% { transform: translate(-50%, -50%) scale(1.08); opacity: 1; }
+}
+
+.genesis-season-detail {
+  display: grid;
+  grid-template-columns: auto 72px;
+  align-items: center;
+  gap: 7px;
+  width: 100%;
+  margin-top: 4px;
+  color: rgba(255, 255, 255, 0.76);
+  font-size: 0.62rem;
+}
+
+.genesis-season-detail i {
+  height: 4px;
+  overflow: hidden;
+  border-radius: 999px;
+  background: rgba(255, 255, 255, 0.2);
+}
+
+.genesis-season-detail b {
+  display: block;
+  width: 0;
+  height: 100%;
+  border-radius: inherit;
+  background: rgba(255, 244, 177, 0.95);
+  transition: width 0.2s linear;
+}
+
+@media (max-width: 760px) {
+  .genesis-key-grid {
+    grid-template-columns: 1fr;
+  }
+}
