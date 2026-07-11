@@ -2,13 +2,13 @@
   "use strict";
 
   const SAMPLE_INTERVAL_MS = 1000;
-  const MAX_SAMPLES = 1800;
-  const MAX_ACTIONS = 600;
+  const MAX_SAMPLES = 2400;
+  const MAX_ACTIONS = 800;
   const MAX_ERRORS = 100;
-  const MAX_WORLD_EVENTS = 300;
+  const MAX_WORLD_EVENTS = 500;
 
   const session = {
-    reportVersion: "little-god-stage0-diagnostics-v1",
+    reportVersion: "little-god-ecology-foundation-diagnostics-v2",
     sessionId: typeof crypto !== "undefined" && crypto.randomUUID
       ? crypto.randomUUID()
       : `session-${Date.now()}-${Math.random().toString(16).slice(2)}`,
@@ -21,26 +21,12 @@
     lastSampleSignature: "",
   };
 
-  function getElement(selector) {
-    return document.querySelector(selector);
-  }
-
-  function textOf(selector, fallback = "") {
-    return getElement(selector)?.textContent?.trim() || fallback;
-  }
+  const getElement = (selector) => document.querySelector(selector);
+  const textOf = (selector, fallback = "") => getElement(selector)?.textContent?.trim() || fallback;
 
   function numberFromText(value, fallback = 0) {
-    const match = String(value).replace(/,/g, "").match(/-?\d+(?:\.\d+)?/);
+    const match = String(value ?? "").replace(/,/g, "").match(/-?\d+(?:\.\d+)?/);
     return match ? Number(match[0]) : fallback;
-  }
-
-  function valueOf(selector, fallback = null) {
-    const element = getElement(selector);
-    return element ? element.value : fallback;
-  }
-
-  function checkedOf(selector) {
-    return Boolean(getElement(selector)?.checked);
   }
 
   function currentSpeed() {
@@ -60,73 +46,101 @@
   }
 
   function collectNewWorldEvents() {
-    const displayedEvents = readRecentEvents();
-    for (const event of displayedEvents.reverse()) {
+    for (const event of readRecentEvents().reverse()) {
       const key = `${event.year}|${event.message}`;
       if (session.seenWorldEvents.has(key)) continue;
       session.seenWorldEvents.add(key);
-      session.worldEvents.push({
-        ...event,
-        capturedAt: new Date().toISOString(),
-      });
+      session.worldEvents.push({ ...event, capturedAt: new Date().toISOString() });
     }
-
     if (session.worldEvents.length > MAX_WORLD_EVENTS) {
       session.worldEvents.splice(0, session.worldEvents.length - MAX_WORLD_EVENTS);
     }
   }
 
-  function getSnapshot() {
-    const balanceFill = getElement("#balanceFill");
-    const progressFill = getElement("#missionProgress");
+  function getInternalSnapshot() {
+    try {
+      return window.LittleGodTelemetry?.getSnapshot?.() || null;
+    } catch (error) {
+      recordError({
+        type: "telemetry-read-error",
+        message: error?.message || String(error),
+        stack: error?.stack || null,
+      });
+      return null;
+    }
+  }
 
+  function getFallbackSnapshot() {
     return {
-      capturedAt: new Date().toISOString(),
-      elapsedRealSeconds: Number(((Date.now() - Date.parse(session.startedAt)) / 1000).toFixed(1)),
       worldYear: numberFromText(textOf("#worldAge")),
+      season: textOf("#seasonLabel", "unknown"),
       running: getElement("#playToggle")?.getAttribute("aria-pressed") === "true",
       speed: currentSpeed(),
-      season: textOf("#seasonLabel", "unknown"),
-      selectedSpecies: selectedSpecies(),
       rules: {
-        growth: numberFromText(valueOf("#growthRule", 1), 1),
-        fertility: numberFromText(valueOf("#fertilityRule", 1), 1),
-        harshSeasons: checkedOf("#seasonsRule"),
+        growth: numberFromText(getElement("#growthRule")?.value, 1),
+        fertility: numberFromText(getElement("#fertilityRule")?.value, 1),
+        fullSeasons: Boolean(getElement("#seasonsRule")?.checked),
+      },
+      resources: {
+        greenBiomass: numberFromText(textOf("#floraCount")),
+        dryBiomass: numberFromText(textOf("#dryCount")),
+        seedBank: numberFromText(textOf("#seedCount")),
+        patchCount: null,
       },
       populations: {
-        flora: numberFromText(textOf("#floraCount")),
         grazers: numberFromText(textOf("#grazerCount")),
         hunters: numberFromText(textOf("#hunterCount")),
-      },
-      trends: {
-        flora: textOf("#floraTrend"),
-        grazers: textOf("#grazerTrend"),
-        hunters: textOf("#hunterTrend"),
+        carcasses: numberFromText(textOf("#carcassCount")),
       },
       mission: {
         state: textOf("#missionState"),
         yearsText: textOf("#missionYears"),
-        progressPercent: numberFromText(progressFill?.style.width, 0),
       },
-      ecology: {
+      trends: {
+        flora: textOf("#floraTrend"),
+        grazer: textOf("#grazerTrend"),
+        hunter: textOf("#hunterTrend"),
+      },
+      currentYearMetrics: {
+        grazerBirths: numberFromText(textOf("#grazerBirths")),
+        hunterBirths: numberFromText(textOf("#hunterBirths")),
+        predationDeaths: numberFromText(textOf("#predationDeaths")),
+        starvationDeaths: numberFromText(textOf("#starvationDeaths")),
+        oldAgeDeaths: numberFromText(textOf("#oldAgeDeaths")),
+        germinatedBiomass: numberFromText(textOf("#germinatedBiomass")),
+      },
+      balance: {
         label: textOf("#balanceLabel"),
-        scorePercent: numberFromText(balanceFill?.style.width, 0),
         advice: textOf("#balanceAdvice"),
+        score: numberFromText(getElement("#balanceFill")?.style.width),
       },
+    };
+  }
+
+  function getSnapshot() {
+    const source = getInternalSnapshot() || getFallbackSnapshot();
+    return {
+      capturedAt: new Date().toISOString(),
+      elapsedRealSeconds: Number(((Date.now() - Date.parse(session.startedAt)) / 1000).toFixed(1)),
+      selectedSpecies: selectedSpecies(),
+      ...source,
     };
   }
 
   function snapshotSignature(snapshot) {
     return JSON.stringify({
-      year: snapshot.worldYear,
+      worldYear: Number(snapshot.worldYear || 0).toFixed(2),
+      season: snapshot.season,
       running: snapshot.running,
       speed: snapshot.speed,
-      season: snapshot.season,
-      selectedSpecies: snapshot.selectedSpecies,
       rules: snapshot.rules,
+      resources: {
+        green: Math.round(snapshot.resources?.greenBiomass || 0),
+        dry: Math.round(snapshot.resources?.dryBiomass || 0),
+        seeds: Math.round(snapshot.resources?.seedBank || 0),
+      },
       populations: snapshot.populations,
-      missionState: snapshot.mission.state,
-      ecologyLabel: snapshot.ecology.label,
+      balance: snapshot.balance?.label,
     });
   }
 
@@ -134,29 +148,26 @@
     collectNewWorldEvents();
     const snapshot = getSnapshot();
     const signature = snapshotSignature(snapshot);
-
     if (!force && signature === session.lastSampleSignature) return;
     session.lastSampleSignature = signature;
     session.samples.push(snapshot);
-
     if (session.samples.length > MAX_SAMPLES) {
       session.samples.splice(0, session.samples.length - MAX_SAMPLES);
     }
   }
 
   function recordAction(type, details = {}) {
+    const snapshot = getSnapshot();
     session.actions.push({
-      capturedAt: new Date().toISOString(),
-      elapsedRealSeconds: Number(((Date.now() - Date.parse(session.startedAt)) / 1000).toFixed(1)),
-      worldYear: numberFromText(textOf("#worldAge")),
+      capturedAt: snapshot.capturedAt,
+      elapsedRealSeconds: snapshot.elapsedRealSeconds,
+      worldYear: snapshot.worldYear,
       type,
       details,
     });
-
     if (session.actions.length > MAX_ACTIONS) {
       session.actions.splice(0, session.actions.length - MAX_ACTIONS);
     }
-
     window.setTimeout(() => recordSample(true), 0);
   }
 
@@ -164,43 +175,46 @@
     session.errors.push({
       capturedAt: new Date().toISOString(),
       elapsedRealSeconds: Number(((Date.now() - Date.parse(session.startedAt)) / 1000).toFixed(1)),
-      worldYear: numberFromText(textOf("#worldAge")),
       ...error,
     });
-
     if (session.errors.length > MAX_ERRORS) {
       session.errors.splice(0, session.errors.length - MAX_ERRORS);
     }
   }
 
-  function summarizePopulation(samples, key) {
-    const values = samples.map((sample) => sample.populations[key]).filter(Number.isFinite);
+  function numericSeries(path) {
+    const keys = path.split(".");
+    return session.samples
+      .map((sample) => keys.reduce((value, key) => value?.[key], sample))
+      .filter(Number.isFinite);
+  }
+
+  function summarizeSeries(path) {
+    const values = numericSeries(path);
     if (values.length === 0) return null;
-
-    let firstZeroYear = null;
-    let previous = values[0];
-    for (let index = 1; index < samples.length; index += 1) {
-      const current = samples[index].populations[key];
-      if (previous > 0 && current === 0) {
-        firstZeroYear = samples[index].worldYear;
-        break;
-      }
-      previous = current;
-    }
-
     return {
       initial: values[0],
       final: values.at(-1),
       minimum: Math.min(...values),
       maximum: Math.max(...values),
-      firstObservedExtinctionYear: firstZeroYear,
     };
+  }
+
+  function firstTransitionToZero(path) {
+    const keys = path.split(".");
+    let previous = null;
+    for (const sample of session.samples) {
+      const current = keys.reduce((value, key) => value?.[key], sample);
+      if (!Number.isFinite(current)) continue;
+      if (previous !== null && previous > 0 && current <= 0) return sample.worldYear;
+      previous = current;
+    }
+    return null;
   }
 
   function buildReport(playerNotes) {
     recordSample(true);
     const finalSnapshot = getSnapshot();
-
     return {
       reportVersion: session.reportVersion,
       sessionId: session.sessionId,
@@ -217,19 +231,30 @@
           height: window.innerHeight,
           devicePixelRatio: window.devicePixelRatio,
         },
-        documentVisibility: document.visibilityState,
       },
       summary: {
         realSessionSeconds: Number(((Date.now() - Date.parse(session.startedAt)) / 1000).toFixed(1)),
         finalWorldYear: finalSnapshot.worldYear,
-        missionState: finalSnapshot.mission.state,
-        missionYearsText: finalSnapshot.mission.yearsText,
-        finalEcologyState: finalSnapshot.ecology,
-        populationHistory: {
-          flora: summarizePopulation(session.samples, "flora"),
-          grazers: summarizePopulation(session.samples, "grazers"),
-          hunters: summarizePopulation(session.samples, "hunters"),
+        finalSeason: finalSnapshot.season,
+        finalEcologyState: finalSnapshot.balance,
+        resources: {
+          greenBiomass: summarizeSeries("resources.greenBiomass"),
+          dryBiomass: summarizeSeries("resources.dryBiomass"),
+          seedBank: summarizeSeries("resources.seedBank"),
+          firstGreenBiomassZeroYear: firstTransitionToZero("resources.greenBiomass"),
+          firstSeedBankZeroYear: firstTransitionToZero("resources.seedBank"),
         },
+        populations: {
+          grazers: {
+            ...summarizeSeries("populations.grazers"),
+            firstExtinctionYear: firstTransitionToZero("populations.grazers"),
+          },
+          hunters: {
+            ...summarizeSeries("populations.hunters"),
+            firstExtinctionYear: firstTransitionToZero("populations.hunters"),
+          },
+        },
+        lifetimeMetrics: finalSnapshot.lifetimeMetrics || null,
         recordedSamples: session.samples.length,
         recordedActions: session.actions.length,
         recordedErrors: session.errors.length,
@@ -249,7 +274,7 @@
 
   function downloadReport() {
     const notes = window.prompt(
-      "可选：请简要描述你发现的问题，例如“12倍速运行到80年后食草兽突然灭绝”。这段文字会写入诊断报告。",
+      "可选：请描述你观察到的问题，例如“第2年冬季鲜草归零，但第3年春季没有复苏”。",
       "",
     );
     const report = buildReport(notes === null ? "" : notes.trim());
@@ -276,40 +301,30 @@
   }
 
   function bindActionTracking() {
-    getElement("#playToggle")?.addEventListener("click", () => {
-      recordAction("toggle-time", { nextRunning: getElement("#playToggle")?.getAttribute("aria-pressed") !== "true" });
-    }, true);
-
+    getElement("#playToggle")?.addEventListener("click", () => recordAction("toggle-time"), true);
     for (const button of document.querySelectorAll(".speed-button")) {
       button.addEventListener("click", () => recordAction("set-speed", { speed: Number(button.dataset.speed) }), true);
     }
-
     for (const button of document.querySelectorAll(".species-button")) {
       button.addEventListener("click", () => recordAction("select-species", { species: button.dataset.species }), true);
     }
-
     getElement("#worldCanvas")?.addEventListener("pointerdown", (event) => {
-      const canvas = event.currentTarget;
-      const rect = canvas.getBoundingClientRect();
+      const rect = event.currentTarget.getBoundingClientRect();
       recordAction("place-species", {
         species: selectedSpecies(),
         normalizedX: Number(((event.clientX - rect.left) / rect.width).toFixed(3)),
         normalizedY: Number(((event.clientY - rect.top) / rect.height).toFixed(3)),
       });
     }, true);
-
     getElement("#growthRule")?.addEventListener("change", () => {
-      recordAction("change-growth-rule", { value: numberFromText(valueOf("#growthRule"), 1) });
+      recordAction("change-growth-rule", { value: numberFromText(getElement("#growthRule")?.value, 1) });
     }, true);
-
     getElement("#fertilityRule")?.addEventListener("change", () => {
-      recordAction("change-fertility-rule", { value: numberFromText(valueOf("#fertilityRule"), 1) });
+      recordAction("change-fertility-rule", { value: numberFromText(getElement("#fertilityRule")?.value, 1) });
     }, true);
-
     getElement("#seasonsRule")?.addEventListener("change", () => {
-      recordAction("toggle-harsh-seasons", { enabled: checkedOf("#seasonsRule") });
+      recordAction("toggle-full-seasons", { enabled: Boolean(getElement("#seasonsRule")?.checked) });
     }, true);
-
     getElement("#resetButton")?.addEventListener("click", () => recordAction("reset-world"), true);
     getElement("#clearButton")?.addEventListener("click", () => recordAction("clear-life"), true);
     getElement("#exportDiagnosticsButton")?.addEventListener("click", downloadReport);
@@ -326,7 +341,6 @@
         stack: event.error?.stack || null,
       });
     });
-
     window.addEventListener("unhandledrejection", (event) => {
       const reason = event.reason;
       recordError({
