@@ -15,6 +15,7 @@ jobs:
       - name: Syntax checks
         run: |
           node --check src/genesis/terrain-store-v2.js
+          node --check src/genesis/rng-v1.js
           node --check src/genesis/simulation.js
           node --check src/genesis/terrain-diagnostics-contract.js
           node --check src/genesis/terrain-renderer-v2.js
@@ -25,3 +26,4 @@ jobs:
           node tests/terrain-diagnostics-contract.test.cjs
           node tests/terrain-feeding-v2.test.cjs
           node tests/terrain-renderer.test.cjs
+          node tests/seeded-rng.test.cjs
