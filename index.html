@@ -5,10 +5,11 @@
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <meta name="description" content="Little God：投放物种、设定世界法则并观察生态兴衰的创世实验。">
   <title>Little God · 创世实验</title>
-  <link rel="stylesheet" href="styles/main.css?v=20260711-1">
-  <link rel="stylesheet" href="styles/diagnostics.css?v=20260711-1">
-  <script src="src/main.js?v=20260711-1" defer></script>
-  <script src="src/diagnostics.js?v=20260711-1" defer></script>
+  <link rel="stylesheet" href="styles/main.css?v=20260711-2">
+  <link rel="stylesheet" href="styles/ecology-v2.css?v=20260711-2">
+  <link rel="stylesheet" href="styles/diagnostics.css?v=20260711-2">
+  <script src="src/main.js?v=20260711-2" defer></script>
+  <script src="src/diagnostics.js?v=20260711-2" defer></script>
 </head>
 <body>
   <div class="app-shell">
@@ -16,7 +17,7 @@
       <div class="brand-block">
         <div class="brand-mark" aria-hidden="true">✦</div>
         <div>
-          <p class="eyebrow">CREATION EXPERIMENT 001</p>
+          <p class="eyebrow">CREATION EXPERIMENT 002</p>
           <h1>Little God</h1>
         </div>
       </div>
@@ -42,16 +43,16 @@
             <span class="section-icon" aria-hidden="true">◈</span>
             <div>
               <p class="eyebrow">创世命题</p>
-              <h2>三类生命共存</h2>
+              <h2>跨越三次四季</h2>
             </div>
           </div>
-          <p class="mission-copy">让萌芽、食草兽和猎食兽连续共存300年。</p>
+          <p class="mission-copy">让草地、食草兽和猎食兽连续经历3个完整年份，不依靠反复补种维持。</p>
           <div class="progress-track" aria-label="共存进度">
             <div id="missionProgress" class="progress-fill"></div>
           </div>
           <div class="mission-meta">
-            <span id="missionYears">0 / 300 年</span>
-            <strong id="missionState">尚未开始</strong>
+            <span id="missionYears">0.0 / 3 年</span>
+            <strong id="missionState">等待时间开始</strong>
           </div>
         </section>
 
@@ -60,7 +61,7 @@
             <span class="section-icon" aria-hidden="true">✚</span>
             <div>
               <p class="eyebrow">创造生命</p>
-              <h2>选择投放物种</h2>
+              <h2>选择投放对象</h2>
             </div>
           </div>
 
@@ -68,27 +69,27 @@
             <button class="species-button is-active" type="button" data-species="flora" aria-pressed="true">
               <span class="species-glyph flora-glyph" aria-hidden="true">✿</span>
               <span class="species-text">
-                <strong>萌芽</strong>
-                <small>每次投放8株</small>
+                <strong>播种草地</strong>
+                <small>创建或补充一个草地斑块</small>
               </span>
             </button>
             <button class="species-button" type="button" data-species="grazer" aria-pressed="false">
               <span class="species-glyph grazer-glyph" aria-hidden="true">●</span>
               <span class="species-text">
                 <strong>食草兽</strong>
-                <small>每次投放4只</small>
+                <small>每次投放3只</small>
               </span>
             </button>
             <button class="species-button" type="button" data-species="hunter" aria-pressed="false">
               <span class="species-glyph hunter-glyph" aria-hidden="true">◆</span>
               <span class="species-text">
                 <strong>猎食兽</strong>
-                <small>每次投放2只</small>
+                <small>每次投放1只</small>
               </span>
             </button>
           </div>
 
-          <p id="placementHint" class="hint-text">已选择萌芽：点击世界投放一片植物。</p>
+          <p id="placementHint" class="hint-text">已选择播种草地：点击世界创建草地，已有草地会补充种子与生物量。</p>
         </section>
 
         <section class="control-section">
@@ -102,26 +103,26 @@
 
           <label class="rule-control" for="growthRule">
             <span class="rule-title">
-              <span>资源繁盛度</span>
+              <span>植物生长率</span>
               <output id="growthValue" for="growthRule">1.0×</output>
             </span>
-            <input id="growthRule" type="range" min="0.5" max="2" step="0.1" value="1">
-            <small>影响萌芽扩散速度</small>
+            <input id="growthRule" type="range" min="0.6" max="1.6" step="0.1" value="1">
+            <small>影响春夏生长、秋季结籽和春季复苏</small>
           </label>
 
           <label class="rule-control" for="fertilityRule">
             <span class="rule-title">
-              <span>生命繁殖倾向</span>
+              <span>动物繁殖倾向</span>
               <output id="fertilityValue" for="fertilityRule">1.0×</output>
             </span>
-            <input id="fertilityRule" type="range" min="0.5" max="2" step="0.1" value="1">
-            <small>影响动物繁殖概率</small>
+            <input id="fertilityRule" type="range" min="0.6" max="1.5" step="0.1" value="1">
+            <small>繁殖仍会受到季节、食物和种群密度限制</small>
           </label>
 
           <label class="toggle-control" for="seasonsRule">
             <span>
-              <strong>严酷季节</strong>
-              <small>周期性冬季会抑制植物并提高消耗</small>
+              <strong>完整四季</strong>
+              <small>冬季鲜草转为枯草，种子会在下一年春季复苏</small>
             </span>
             <span class="switch">
               <input id="seasonsRule" type="checkbox" checked>
@@ -132,17 +133,23 @@
 
         <section class="control-section compact-actions">
           <button id="clearButton" class="danger-button" type="button">清空所有生命</button>
-          <p class="hint-text">清空不会重置世界年龄和规则，适合重新设计生态。</p>
+          <p class="hint-text">会同时清除草地、种子、动物和尸体，但保留世界年龄与法则。</p>
         </section>
       </aside>
 
       <section class="world-column" aria-label="世界画布">
         <div class="world-frame">
-          <canvas id="worldCanvas" width="960" height="600" aria-label="生态世界，点击可投放当前选择的物种"></canvas>
+          <canvas id="worldCanvas" width="960" height="600" aria-label="生态世界，点击可投放当前选择的对象"></canvas>
 
           <div class="world-hud top-left" aria-live="polite">
             <span id="worldAge">第 0 年</span>
-            <strong id="seasonLabel">温和季</strong>
+            <strong id="seasonLabel">春季</strong>
+          </div>
+
+          <div class="resource-hud" aria-label="世界资源概览">
+            <span>鲜草 <strong id="hudGreen">0</strong></span>
+            <span>枯草 <strong id="hudDry">0</strong></span>
+            <span>种子 <strong id="hudSeeds">0</strong></span>
           </div>
 
           <div id="pauseBanner" class="pause-banner">时间尚未开始</div>
@@ -150,12 +157,13 @@
         </div>
 
         <div class="world-footer">
-          <div class="legend" aria-label="物种图例">
-            <span><i class="legend-shape flora"></i>萌芽</span>
+          <div class="legend" aria-label="图例">
+            <span><i class="legend-shape flora"></i>草地斑块</span>
             <span><i class="legend-shape grazer"></i>食草兽</span>
             <span><i class="legend-shape hunter"></i>猎食兽</span>
+            <span><i class="legend-shape carcass"></i>尸体</span>
           </div>
-          <p>提示：猎食兽太多会先让猎物灭绝，随后自己也会因饥饿消失。</p>
+          <p>冬季鲜草会枯萎，但枯草和地下种子仍会保留；春季会自然复苏。</p>
         </div>
       </section>
 
@@ -165,25 +173,31 @@
             <span class="section-icon" aria-hidden="true">◎</span>
             <div>
               <p class="eyebrow">实时观察</p>
-              <h2>生命统计</h2>
+              <h2>生态统计</h2>
             </div>
           </div>
 
-          <div class="stat-grid">
-            <article class="stat-card flora-stat">
-              <span>萌芽</span>
-              <strong id="floraCount">0</strong>
-              <small id="floraTrend">稳定</small>
-            </article>
+          <div class="resource-stat-grid">
+            <article class="resource-stat green-stat"><span>鲜草量</span><strong id="floraCount">0</strong><small id="floraTrend">— 稳定</small></article>
+            <article class="resource-stat dry-stat"><span>枯草量</span><strong id="dryCount">0</strong><small>冬季储备</small></article>
+            <article class="resource-stat seed-stat"><span>种子库</span><strong id="seedCount">0</strong><small>春季复苏基础</small></article>
+          </div>
+
+          <div class="stat-grid animal-stats">
             <article class="stat-card grazer-stat">
               <span>食草兽</span>
               <strong id="grazerCount">0</strong>
-              <small id="grazerTrend">稳定</small>
+              <small id="grazerTrend">— 稳定</small>
             </article>
             <article class="stat-card hunter-stat">
               <span>猎食兽</span>
               <strong id="hunterCount">0</strong>
-              <small id="hunterTrend">稳定</small>
+              <small id="hunterTrend">— 稳定</small>
+            </article>
+            <article class="stat-card carcass-stat">
+              <span>尸体</span>
+              <strong id="carcassCount">0</strong>
+              <small>会逐渐回归土壤</small>
             </article>
           </div>
         </section>
@@ -196,7 +210,22 @@
           <div class="balance-meter" aria-hidden="true">
             <div id="balanceFill" class="balance-fill"></div>
           </div>
-          <p id="balanceAdvice" class="balance-advice">投放生命后开始时间，观察它们如何彼此影响。</p>
+          <p id="balanceAdvice" class="balance-advice">开始时间后，系统会结合资源储备和最近趋势判断风险。</p>
+        </section>
+
+        <section class="life-ledger" aria-label="本年生命账本">
+          <div class="balance-heading">
+            <span>本年生命账本</span>
+            <strong id="ledgerYear">第0年</strong>
+          </div>
+          <div class="ledger-grid">
+            <span>食草兽出生 <strong id="grazerBirths">0</strong></span>
+            <span>猎食兽出生 <strong id="hunterBirths">0</strong></span>
+            <span>被捕食 <strong id="predationDeaths">0</strong></span>
+            <span>饿死 <strong id="starvationDeaths">0</strong></span>
+            <span>老死 <strong id="oldAgeDeaths">0</strong></span>
+            <span>新萌发生物量 <strong id="germinatedBiomass">0</strong></span>
+          </div>
         </section>
 
         <section class="chronicle-section">
@@ -213,12 +242,12 @@
     </main>
 
     <footer class="footer-note">
-      <span>阶段0 · 生态原型</span>
-      <p>这一版只验证“观察世界是否有趣”，不会提前加入文明、宗教和科技。</p>
+      <span>阶段1 · 生态底层重构</span>
+      <p>本版只验证四季、草地生物量、枯草、种子库、春季复苏与死亡原因。</p>
     </footer>
   </div>
 
-  <span class="build-version">v0.1.1 · diagnostics</span>
-  <button id="exportDiagnosticsButton" class="diagnostics-fab" type="button" title="下载本局操作、物种数量变化、世界事件和报错记录">导出本局诊断</button>
+  <span class="build-version">v0.2.0 · ecology foundation</span>
+  <button id="exportDiagnosticsButton" class="diagnostics-fab" type="button" title="下载本局操作、生态资源、死亡原因、世界事件和报错记录">导出本局诊断</button>
 </body>
 </html>
