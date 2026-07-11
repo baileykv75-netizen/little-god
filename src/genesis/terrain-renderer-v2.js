@@ -14,9 +14,14 @@
   raster.height = GRID.rows * 2;
   const rasterCtx = raster.getContext("2d", { alpha: false });
   const image = rasterCtx.createImageData(raster.width, raster.height);
+  const grazerActivity = new Float32Array(GRID.columns * GRID.rows);
+  const hunterActivity = new Float32Array(GRID.columns * GRID.rows);
 
   let lastRasterTime = -Infinity;
   let lastSeason = null;
+  let latestHeatmapDiagnostics = null;
+
+  state.showActivityHeatmap = Boolean(state.showActivityHeatmap);
 
   const clamp01 = (value) => Math.max(0, Math.min(1, value));
   const mix = (from, to, amount) => from + (to - from) * amount;
@@ -52,10 +57,74 @@
     return mix(mix(a, b, tx), mix(c, d, tx), ty);
   }
 
+  function sampled(values, x, y) {
+    const x0 = Math.max(0, Math.min(GRID.columns - 1, Math.floor(x)));
+    const y0 = Math.max(0, Math.min(GRID.rows - 1, Math.floor(y)));
+    const x1 = Math.min(GRID.columns - 1, x0 + 1);
+    const y1 = Math.min(GRID.rows - 1, y0 + 1);
+    const tx = x - x0;
+    const ty = y - y0;
+    const a = values[y0 * GRID.columns + x0] || 0;
+    const b = values[y0 * GRID.columns + x1] || 0;
+    const c = values[y1 * GRID.columns + x0] || 0;
+    const d = values[y1 * GRID.columns + x1] || 0;
+    return mix(mix(a, b, tx), mix(c, d, tx), ty);
+  }
+
+  function addActivity(values, animal, amount) {
+    const column = Math.max(0, Math.min(GRID.columns - 1, Math.floor(animal.x / GRID.cellWidth)));
+    const row = Math.max(0, Math.min(GRID.rows - 1, Math.floor(animal.y / GRID.cellHeight)));
+    for (let dy = -1; dy <= 1; dy += 1) {
+      for (let dx = -1; dx <= 1; dx += 1) {
+        const nextColumn = column + dx;
+        const nextRow = row + dy;
+        if (nextColumn < 0 || nextColumn >= GRID.columns || nextRow < 0 || nextRow >= GRID.rows) continue;
+        const distanceWeight = dx === 0 && dy === 0 ? 1 : (dx === 0 || dy === 0 ? 0.42 : 0.22);
+        values[nextRow * GRID.columns + nextColumn] += amount * distanceWeight;
+      }
+    }
+  }
+
+  function rebuildActivityFields(cells) {
+    grazerActivity.fill(0);
+    hunterActivity.fill(0);
+    for (const grazer of state.grazers || []) addActivity(grazerActivity, grazer, 1);
+    for (const hunter of state.hunters || []) addActivity(hunterActivity, hunter, 1.35);
+
+    const hotspots = [];
+    let peakIntensity = 0;
+    for (let index = 0; index < cells.length; index += 1) {
+      const cell = cells[index];
+      const grazing = clamp01((Number(cell.grazingPressure) || 0) / 8);
+      const grazers = clamp01(grazerActivity[index] / 3);
+      const hunters = clamp01(hunterActivity[index] / 2);
+      const intensity = clamp01(grazing * 0.68 + grazers * 0.5 + hunters * 0.72);
+      peakIntensity = Math.max(peakIntensity, intensity);
+      if (intensity >= 0.12) {
+        hotspots.push({
+          column: cell.gridColumn ?? index % GRID.columns,
+          row: cell.gridRow ?? Math.floor(index / GRID.columns),
+          intensity,
+          grazerActivity: grazerActivity[index],
+          hunterActivity: hunterActivity[index],
+          grazingPressure: Number(cell.grazingPressure) || 0,
+        });
+      }
+    }
+    hotspots.sort((a, b) => b.intensity - a.intensity);
+    latestHeatmapDiagnostics = {
+      enabled: state.showActivityHeatmap,
+      cellsWithActivity: hotspots.length,
+      peakIntensity,
+      hotspots: hotspots.slice(0, 12),
+    };
+  }
+
   function rebuildRaster() {
     const cells = typeof LG.getTerrainCells === "function" ? LG.getTerrainCells() : state.terrainCells;
     if (!Array.isArray(cells) || cells.length !== GRID.columns * GRID.rows) return false;
 
+    rebuildActivityFields(cells);
     const colors = palette();
     const maxGreen = GRID.maxGreen || 12;
     const maxDry = GRID.maxDry || 10;
@@ -91,6 +160,22 @@
         red = mix(red, colors.green[0], greenAmount * 0.92);
         greenChannel = mix(greenChannel, colors.green[1], greenAmount * 0.92);
         blue = mix(blue, colors.green[2], greenAmount * 0.92);
+
+        if (state.showActivityHeatmap) {
+          const grazerHeat = clamp01(sampled(grazerActivity, gx, gy) / 3);
+          const hunterHeat = clamp01(sampled(hunterActivity, gx, gy) / 2);
+          const heat = clamp01(pressure * 0.68 + grazerHeat * 0.5 + hunterHeat * 0.72);
+          if (heat > 0.015) {
+            const hunterShare = hunterHeat / Math.max(0.001, grazerHeat + hunterHeat);
+            const heatRed = mix(238, 126, hunterShare);
+            const heatGreen = mix(159, 82, hunterShare);
+            const heatBlue = mix(54, 186, hunterShare);
+            const opacity = smoothstep(0.02, 0.78, heat) * 0.62;
+            red = mix(red, heatRed, opacity);
+            greenChannel = mix(greenChannel, heatGreen, opacity);
+            blue = mix(blue, heatBlue, opacity);
+          }
+        }
 
         const index = (py * raster.width + px) * 4;
         data[index] = Math.round(red);
@@ -277,9 +362,44 @@
     ctx.restore();
   }
 
+  function syncHeatmapButton(button) {
+    button.setAttribute("aria-pressed", String(state.showActivityHeatmap));
+    button.textContent = state.showActivityHeatmap ? "热区开" : "热区";
+    button.title = state.showActivityHeatmap
+      ? "关闭活动热区：橙色表示食草与啃食压力，紫色表示猎食兽活动"
+      : "显示活动热区：观察动物聚集和啃食压力";
+  }
+
+  function injectHeatmapControl() {
+    const controls = document.querySelector("#cameraControls");
+    if (!controls || document.querySelector("#activityHeatmapToggle")) return;
+    const button = document.createElement("button");
+    button.id = "activityHeatmapToggle";
+    button.type = "button";
+    button.className = "camera-fit";
+    syncHeatmapButton(button);
+    button.addEventListener("click", () => {
+      state.showActivityHeatmap = !state.showActivityHeatmap;
+      lastRasterTime = -Infinity;
+      syncHeatmapButton(button);
+      LG.showToast?.(state.showActivityHeatmap ? "活动热区已开启" : "活动热区已关闭");
+    });
+    controls.append(button);
+  }
+
   LG.renderContinuousTerrainFrame = renderFrame;
+  LG.getActivityHeatmapDiagnostics = () => ({
+    ...(latestHeatmapDiagnostics || {
+      enabled: state.showActivityHeatmap,
+      cellsWithActivity: 0,
+      peakIntensity: 0,
+      hotspots: [],
+    }),
+    enabled: state.showActivityHeatmap,
+    hotspots: (latestHeatmapDiagnostics?.hotspots || []).map((hotspot) => ({ ...hotspot })),
+  });
   LG.terrainRendererModel = Object.freeze({
-    version: "continuous-raster-v1",
+    version: "continuous-raster-v2",
     source: "state.terrainCells",
     gridColumns: GRID.columns,
     gridRows: GRID.rows,
@@ -287,7 +407,10 @@
     rasterRows: raster.height,
     usesLegacyPatchShapes: false,
     smoothInterpolation: true,
+    activityHeatmap: true,
   });
+
+  injectHeatmapControl();
 
   function loop(timestamp) {
     renderFrame(timestamp);
