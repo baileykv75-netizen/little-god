@@ -52,18 +52,16 @@ assert.equal(diagnostics.version, "terrain-grid-diagnostics-v1");
 assert.equal(diagnostics.columns, 64);
 assert.equal(diagnostics.rows, 40);
 assert.equal(diagnostics.cellCount, 2560);
-assert.deepEqual(diagnostics.grid, {
-  columns: 64,
-  rows: 40,
-  cellCount: 2560,
-  cellWidth: 32,
-  cellHeight: 32,
-});
-assert.deepEqual(diagnostics.coverage, {
-  vegetated: 0.42,
-  rooted: 0.37,
-  bare: 0.31,
-});
+assert.equal(diagnostics.cellSize, 32);
+assert.equal(diagnostics.grid.columns, 64);
+assert.equal(diagnostics.grid.rows, 40);
+assert.equal(diagnostics.grid.cellCount, 2560);
+assert.equal(diagnostics.grid.cellWidth, 32);
+assert.equal(diagnostics.grid.cellHeight, 32);
+assert.equal(diagnostics.grid.cellSize, 32);
+assert.equal(diagnostics.coverage.vegetated, 0.42);
+assert.equal(diagnostics.coverage.rooted, 0.37);
+assert.equal(diagnostics.coverage.bare, 0.31);
 assert.equal(diagnostics.resources.greenBiomass, 4059);
 assert.equal(diagnostics.resources.rootBiomass, 610);
 assert.equal(diagnostics.resources.averageFertility, 0.9);
