@@ -60,6 +60,7 @@
     };
     result.coverage = {
       green: greenCoverage,
+      root: rootCoverage,
       roots: rootCoverage,
       bare: bareCoverage,
       barren: bareCoverage,
