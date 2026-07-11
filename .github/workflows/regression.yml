@@ -1,0 +1,24 @@
+name: Checkpoint regression
+
+on:
+  push:
+    branches: [main]
+
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
+      - name: Syntax checks
+        run: |
+          node --check src/genesis/terrain-store-v2.js
+          node --check src/genesis/simulation.js
+          node --check src/genesis/terrain-diagnostics-contract.js
+      - name: Checkpoint regression tests
+        run: |
+          node tests/vegetation-grid.test.cjs
+          node tests/terrain-diagnostics-contract.test.cjs
+          node tests/terrain-feeding-v2.test.cjs
