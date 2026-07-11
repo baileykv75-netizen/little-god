@@ -4,28 +4,6 @@
   const LG = window.LittleGod;
   if (!LG) throw new Error("Terrain diagnostics contract requires LittleGod core");
 
-  // This file loads before simulation.js. Capture the established grazer loop
-  // when simulation assigns it, then allow the terrain module to replace only
-  // the public updater without losing lifecycle, movement or reproduction.
-  let establishedGrazerLoop = null;
-  let activeGrazerUpdater = (...args) => establishedGrazerLoop?.apply(LG, args);
-
-  Object.defineProperty(LG, "updateGrazers", {
-    configurable: true,
-    get() {
-      return activeGrazerUpdater;
-    },
-    set(value) {
-      establishedGrazerLoop = value;
-    },
-  });
-
-  LG.getEstablishedGrazerLoop = () => establishedGrazerLoop;
-  LG.setTerrainGrazerUpdater = (updater) => {
-    if (typeof updater !== "function") throw new TypeError("Terrain grazer updater must be a function");
-    activeGrazerUpdater = updater;
-  };
-
   const asCoverage = (value, fallback) => {
     const numeric = Number(value);
     if (!Number.isFinite(numeric)) return fallback;
