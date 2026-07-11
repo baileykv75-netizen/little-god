@@ -3,17 +3,18 @@
 
   const LG = window.LittleGod;
   if (!LG) throw new Error("Terrain feeding requires LittleGod core");
-  if (typeof LG.updateGrazers !== "function") throw new Error("Terrain feeding requires simulation.js");
 
   const { state, SPECIES } = LG;
-  const originalUpdateGrazers = LG.updateGrazers;
   const legacyViewCache = new WeakMap();
+  let legacyUpdateGrazers = null;
 
   function legacySafeCell(cell) {
     let proxy = legacyViewCache.get(cell);
     if (proxy) return proxy;
     proxy = new Proxy(cell, {
       get(target, property, receiver) {
+        // Legacy feeding used a circular radius. Grid cells intentionally expose
+        // no usable radius while the established lifecycle loop is running.
         if (property === "radius") return Number.NaN;
         return Reflect.get(target, property, receiver);
       },
@@ -25,14 +26,15 @@
     return proxy;
   }
 
-  function withLegacyFeedingDisabled(callback) {
+  function runEstablishedGrazerLoop(dt) {
+    if (typeof legacyUpdateGrazers !== "function") return;
     const terrainCells = state.patches;
     const safeGridView = terrainCells
       .filter((cell) => cell?.isGridCell === true)
       .map(legacySafeCell);
     state.patches = safeGridView;
     try {
-      callback();
+      legacyUpdateGrazers.call(LG, dt);
     } finally {
       state.patches = terrainCells;
     }
@@ -88,8 +90,8 @@
     return eaten;
   };
 
-  LG.updateGrazers = (dt) => {
-    withLegacyFeedingDisabled(() => originalUpdateGrazers.call(LG, dt));
+  function updateGrazersFromTerrain(dt) {
+    runEstablishedGrazerLoop(dt);
 
     for (const grazer of state.grazers) {
       const threatRadius = grazer.derived?.threatRadius || SPECIES.grazer.threatRadius;
@@ -101,11 +103,23 @@
       );
       if (!threatened) LG.consumeTerrainFoodAt(grazer, dt);
     }
-  };
+  }
 
+  Object.defineProperty(LG, "updateGrazers", {
+    configurable: true,
+    get() {
+      return updateGrazersFromTerrain;
+    },
+    set(value) {
+      legacyUpdateGrazers = value;
+    },
+  });
+
+  LG.getEstablishedGrazerLoop = () => legacyUpdateGrazers;
   LG.terrainFeedingModel = Object.freeze({
-    version: "grid-local-v2",
+    version: "grid-local-v3",
     source: "64x40-vegetation-grid",
     legacyCircularFeeding: false,
+    binding: "pre-simulation-accessor",
   });
 })();
