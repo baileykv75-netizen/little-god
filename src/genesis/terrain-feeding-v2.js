@@ -3,6 +3,11 @@
 
   const LG = window.LittleGod;
   if (!LG) throw new Error("Terrain feeding requires LittleGod core");
+
+  // simulation.js now owns grid-local feeding directly. Keep this module only as
+  // a compatibility fallback for isolated tests or older saved page bundles.
+  if (LG.terrainFeedingModel?.nativeGridFeeding === true) return;
+
   if (typeof LG.getEstablishedGrazerLoop !== "function" || typeof LG.setTerrainGrazerUpdater !== "function") {
     throw new Error("Terrain feeding bootstrap must load before simulation.js");
   }
@@ -15,8 +20,6 @@
     if (proxy) return proxy;
     proxy = new Proxy(cell, {
       get(target, property, receiver) {
-        // Legacy feeding used a circular radius. Grid cells intentionally expose
-        // no usable radius while the established lifecycle loop is running.
         if (property === "radius") return Number.NaN;
         return Reflect.get(target, property, receiver);
       },
