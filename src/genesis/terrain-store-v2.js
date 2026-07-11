@@ -12,7 +12,8 @@
   const initialPatchCollection = Array.isArray(state.patches) ? state.patches : [];
   let renderViews = initialPatchCollection;
   let terrainModeDepth = 0;
-  let suppressExternalClear = false;
+  let suppressExternalWrite = false;
+  let invalidatedByLegacyReplacement = false;
 
   const original = {
     initializeVegetationGrid: LG.initializeVegetationGrid,
@@ -40,7 +41,10 @@
         return;
       }
       renderViews = next;
-      if (!suppressExternalClear && next.length === 0) state.terrainCells = [];
+      if (!suppressExternalWrite) {
+        state.terrainCells = [];
+        invalidatedByLegacyReplacement = true;
+      }
     },
   });
 
@@ -60,12 +64,25 @@
   }
 
   function normalizeCanonicalCell(cell) {
-    // Circular radius belongs to the renderer only. Feeding, seasons and
-    // diagnostics operate on rectangular grid cells with no patch radius.
     if (Object.prototype.hasOwnProperty.call(cell, "radius")) delete cell.radius;
     cell.terrainModel = "grid-cell";
     cell.drivesFeeding = true;
     return cell;
+  }
+
+  function copyRenderSnapshot(view, cell) {
+    view.x = cell.x;
+    view.y = cell.y;
+    view.green = cell.green;
+    view.dry = cell.dry;
+    view.seeds = cell.seeds;
+    view.rootBiomass = cell.rootBiomass;
+    view.moisture = cell.moisture;
+    view.grazingPressure = cell.grazingPressure;
+    view.phase = cell.phase;
+    view.barrenAge = cell.barrenAge;
+    view.gridColumn = cell.gridColumn;
+    view.gridRow = cell.gridRow;
   }
 
   function createRenderView(cell) {
@@ -77,24 +94,30 @@
       drivesFeeding: false,
       terrainCellId: cell.id,
       radius: Math.max(GRID.cellWidth, GRID.cellHeight) * 0.72,
+      green: 0,
+      dry: 0,
+      seeds: 0,
+      rootBiomass: 0,
     };
-
-    for (const key of [
-      "x", "y", "green", "dry", "seeds", "rootBiomass", "fertility",
-      "moisture", "grazingPressure", "phase", "barrenAge", "gridColumn", "gridRow",
-    ]) {
-      Object.defineProperty(view, key, {
-        enumerable: true,
-        configurable: false,
-        get() { return cell[key]; },
-        set(value) {
-          // Render views never own food. Only non-food compatibility writes such
-          // as carcass fertility enrichment are forwarded to the terrain cell.
-          if (key === "fertility") cell.fertility = value;
-        },
-      });
-    }
+    Object.defineProperty(view, "fertility", {
+      enumerable: true,
+      configurable: false,
+      get() { return cell.fertility; },
+      set(value) { cell.fertility = value; },
+    });
+    copyRenderSnapshot(view, cell);
     return view;
+  }
+
+  function syncRenderViews() {
+    if (!isCompleteGrid(state.terrainCells)) return;
+    if (renderViews.length !== cellCount || !renderViews.every((view) => view?.isTerrainRenderCell)) {
+      renderViews = state.terrainCells.map(createRenderView);
+      return;
+    }
+    for (let index = 0; index < state.terrainCells.length; index += 1) {
+      copyRenderSnapshot(renderViews[index], state.terrainCells[index]);
+    }
   }
 
   function publishTerrain(cells) {
@@ -102,9 +125,10 @@
       throw new Error(`Terrain grid must contain ${cellCount} canonical cells`);
     }
     state.terrainCells = cells.map(normalizeCanonicalCell);
-    suppressExternalClear = true;
+    invalidatedByLegacyReplacement = false;
+    suppressExternalWrite = true;
     renderViews = state.terrainCells.map(createRenderView);
-    suppressExternalClear = false;
+    suppressExternalWrite = false;
     return state.terrainCells;
   }
 
@@ -115,11 +139,13 @@
 
   LG.getTerrainCells = () => {
     if (isCompleteGrid(state.terrainCells)) return state.terrainCells;
+    if (invalidatedByLegacyReplacement) return [];
     return LG.initializeVegetationGrid();
   };
 
   LG.getVegetationCell = (column, row) => {
     const cells = LG.getTerrainCells();
+    if (!cells.length) return null;
     const safeColumn = LG.clamp(Math.floor(column), 0, GRID.columns - 1);
     const safeRow = LG.clamp(Math.floor(row), 0, GRID.rows - 1);
     return cells[safeRow * GRID.columns + safeColumn];
@@ -132,6 +158,7 @@
 
   LG.getVegetationCellsInRadius = (x, y, radius) => {
     const cells = LG.getTerrainCells();
+    if (!cells.length) return [];
     const minColumn = LG.clamp(Math.floor((x - radius) / GRID.cellWidth), 0, GRID.columns - 1);
     const maxColumn = LG.clamp(Math.floor((x + radius) / GRID.cellWidth), 0, GRID.columns - 1);
     const minRow = LG.clamp(Math.floor((y - radius) / GRID.cellHeight), 0, GRID.rows - 1);
@@ -153,14 +180,26 @@
     return nearby;
   };
 
-  LG.createPatch = (...args) => withTerrainCells(() => original.createPatch(...args));
-  LG.seedPatchAt = (...args) => withTerrainCells(() => original.seedPatchAt(...args));
+  LG.createPatch = (...args) => {
+    const result = withTerrainCells(() => original.createPatch(...args));
+    syncRenderViews();
+    return result;
+  };
+  LG.seedPatchAt = (...args) => {
+    const result = withTerrainCells(() => original.seedPatchAt(...args));
+    syncRenderViews();
+    return result;
+  };
   LG.findPatchNear = (...args) => withTerrainCells(() => original.findPatchNear(...args));
   LG.getResourceTotals = () => withTerrainCells(() => original.getResourceTotals());
   LG.hasDormantPlantLife = () => withTerrainCells(() => original.hasDormantPlantLife());
   LG.getVegetationDiagnostics = () => withTerrainCells(() => original.getVegetationDiagnostics());
 
-  const updateTerrain = (dt) => withTerrainCells(() => original.updateVegetationGrid(dt));
+  const updateTerrain = (dt) => {
+    const result = withTerrainCells(() => original.updateVegetationGrid(dt));
+    syncRenderViews();
+    return result;
+  };
   LG.updateVegetationGrid = updateTerrain;
   Object.defineProperty(LG, "updatePatches", {
     configurable: true,
@@ -173,9 +212,11 @@
   else if (isCompleteGrid(initialPatchCollection)) publishTerrain(initialPatchCollection);
 
   LG.terrainStoreModel = Object.freeze({
-    version: "terrain-store-v3",
+    version: "terrain-store-v4",
     source: "state.terrainCells",
-    renderSource: "state.patches-render-views",
+    renderSource: "detached-state.patches-snapshots",
+    renderViewsOwnFood: false,
+    externalLegacyReplacementInvalidatesTerrain: true,
     canonicalCellsHaveCircularRadius: false,
     sharedCellIdentityWithLegacyPatches: false,
     legacyPatchCollectionFeedsAnimals: false,
