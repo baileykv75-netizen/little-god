@@ -36,6 +36,12 @@ const LittleGod = {
     hunters: [],
     year: 2,
   },
+  GRID: {
+    columns: 64,
+    rows: 40,
+    cellWidth: 32,
+    cellHeight: 32,
+  },
   SPECIES: {
     grazer: {
       eatRate: 10,
@@ -45,14 +51,20 @@ const LittleGod = {
       threatRadius: 40,
     },
   },
-  updateGrazers() {
-    for (const legacyPatch of this.state.patches) {
-      const reach = legacyPatch.radius * 0.72 + 9;
-      if ((legacyPatch.x - grazer.x) ** 2 + (legacyPatch.y - grazer.y) ** 2 < reach * reach) {
-        legacyPatch.green -= 5;
-        break;
-      }
-    }
+  getVegetationDiagnostics() {
+    return {
+      columns: 64,
+      rows: 40,
+      cellCount: 2560,
+      vegetatedCoverage: 0.5,
+      rootCoverage: 0.4,
+      bareCoverage: 0.2,
+      hotspots: [],
+      budget: {},
+    };
+  },
+  getResourceTotals() {
+    return { green: 10, dry: 0, seeds: 0, roots: 4, fertility: 2560 };
   },
   getVegetationCellsInRadius() {
     return this.state.patches;
@@ -73,8 +85,27 @@ const context = {
   Proxy,
   Reflect,
   WeakMap,
+  TypeError,
 };
 vm.createContext(context);
+
+vm.runInContext(
+  fs.readFileSync("src/genesis/terrain-diagnostics-contract.js", "utf8"),
+  context,
+  { filename: "src/genesis/terrain-diagnostics-contract.js" },
+);
+
+// This assignment represents simulation.js loading after the bootstrap.
+LittleGod.updateGrazers = function establishedGrazerLoop() {
+  for (const legacyPatch of this.state.patches) {
+    const reach = legacyPatch.radius * 0.72 + 9;
+    if ((legacyPatch.x - grazer.x) ** 2 + (legacyPatch.y - grazer.y) ** 2 < reach * reach) {
+      legacyPatch.green -= 5;
+      break;
+    }
+  }
+};
+
 vm.runInContext(
   fs.readFileSync("src/genesis/terrain-feeding-v2.js", "utf8"),
   context,
@@ -82,7 +113,9 @@ vm.runInContext(
 );
 
 assert.equal(LittleGod.terrainFeedingModel.legacyCircularFeeding, false);
-assert.equal(LittleGod.terrainFeedingModel.version, "grid-local-v2");
+assert.equal(LittleGod.terrainFeedingModel.version, "grid-local-v4");
+assert.equal(LittleGod.terrainFeedingModel.binding, "captured-before-simulation");
+assert.equal(typeof LittleGod.getEstablishedGrazerLoop(), "function");
 assert.equal(typeof LittleGod.consumeTerrainFoodAt, "function");
 assert.equal(typeof LittleGod.getTerrainFeedingCell, "function");
 
