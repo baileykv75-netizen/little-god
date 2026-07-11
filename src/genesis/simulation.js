@@ -2,7 +2,7 @@
   "use strict";
 
   const LG = window.LittleGod;
-  const { state: s, WORLD, PATCH, SPECIES } = LG;
+  const { state: s, WORLD, SPECIES } = LG;
 
   const statsOf = (animal) => animal.derived || {
     walkSpeed: SPECIES[animal.type].walkSpeed,
@@ -66,14 +66,14 @@
     LG.moveAnimal(animal, animal.angle, speed, dt);
   };
 
-  LG.localPlantFood = (animal, radius = 175) => {
-    const radiusSquared = radius * radius;
-    let amount = 0;
-    for (const patch of s.patches) {
-      if (LG.distanceSquared(animal, patch) <= radiusSquared) amount += patch.green + patch.dry * 0.35;
-    }
-    return amount;
-  };
+  function terrainCellsWithin(animal, radius) {
+    if (typeof LG.getVegetationCellsInRadius !== "function") return [];
+    return LG.getVegetationCellsInRadius(animal.x, animal.y, radius)
+      .filter((cell) => cell?.isGridCell === true);
+  }
+
+  LG.localPlantFood = (animal, radius = 175) => terrainCellsWithin(animal, radius)
+    .reduce((amount, cell) => amount + cell.green + cell.dry * 0.35, 0);
 
   LG.reproductionSeasonMultiplier = () => {
     if (!s.rules.fullSeasons) return 1;
@@ -119,156 +119,53 @@
     s.ledger = LG.freshLedger(currentWhole);
   };
 
-  function maybeDisperseSeed(patch, dt) {
-    patch.spreadCooldown = Math.max(0, patch.spreadCooldown - dt);
-    if (
-      s.season !== "autumn"
-      || patch.spreadCooldown > 0
-      || patch.seeds < 46
-      || patch.green < 58
-      || patch.rootBiomass < 38
-      || s.patches.length >= WORLD.maxPatches
-      || Math.random() >= 0.75 * dt
-    ) return;
-
-    const angle = LG.randomBetween(0, Math.PI * 2);
-    const distance = LG.randomBetween(92, 155);
-    const x = LG.clamp(patch.x + Math.cos(angle) * distance, 45, 915);
-    const y = LG.clamp(patch.y + Math.sin(angle) * distance, 45, 555);
-    if (LG.findPatchNear(x, y, 68)) return;
-
-    patch.seeds -= 16;
-    LG.createPatch(x, y, {
-      green: 0,
-      dry: 0,
-      seeds: 16,
-      rootBiomass: 8,
-      fertility: LG.clamp(patch.fertility * LG.randomBetween(0.85, 1.02), 0.4, 1.2),
-      radius: LG.randomBetween(25, 34),
-      lineageId: patch.lineageId,
-      generation: patch.generation + 1,
-    });
-    patch.spreadCooldown = 1.5;
-    LG.incrementMetric("seedDispersals");
-    if (s.lifetime.seedDispersals === 1) {
-      LG.addEvent("第一批种子离开母草地，在局部空地建立新的根系。 ");
-    }
-  }
-
-  function updatePatch(patch, dt) {
-    const multiplier = s.rules.growth;
-    const rootFactor = 0.58 + patch.rootBiomass / 170;
-    const capacity = PATCH.maxGreen * (0.68 + patch.fertility * 0.32) * rootFactor;
-    const litter = LG.clamp(patch.dry / PATCH.maxDry, 0, 1);
-    const crowding = LG.clamp(1 - patch.green / Math.max(1, capacity), 0, 1)
-      * (1 - litter * PATCH.litterSuppression);
-    let growthRate = PATCH.mildGrowth;
-    if (s.rules.fullSeasons) {
-      growthRate = s.season === "spring"
-        ? PATCH.springGrowth
-        : s.season === "summer"
-          ? PATCH.summerGrowth
-          : s.season === "autumn"
-            ? PATCH.autumnGrowth
-            : 0;
-    }
-
-    let growthAdded = 0;
-    if (s.season === "spring" && patch.green < capacity * 0.72) {
-      const rootRecovery = Math.min(
-        patch.rootBiomass * 0.18,
-        PATCH.springGermination * multiplier * patch.fertility * crowding * dt,
-      );
-      patch.green += rootRecovery;
-      patch.rootBiomass = Math.max(0, patch.rootBiomass - rootRecovery * 0.045);
-      growthAdded += rootRecovery;
-      LG.incrementMetric("germinatedBiomass", rootRecovery);
-
-      if (patch.seeds > 0 && patch.rootBiomass < 24) {
-        const seedRecovery = Math.min(patch.seeds, 8 * multiplier * patch.fertility * dt);
-        patch.seeds -= seedRecovery;
-        patch.rootBiomass = LG.clamp(patch.rootBiomass + seedRecovery * 0.7, 0, 100);
-      }
-    }
-
-    if (growthRate > 0 && (patch.green > 0.15 || patch.rootBiomass > 0.5 || patch.seeds > 0.5)) {
-      const growth = growthRate * multiplier * patch.fertility * crowding * rootFactor * dt;
-      patch.green += growth;
-      patch.rootBiomass = LG.clamp(patch.rootBiomass + growth * 0.018, 0, 100);
-      growthAdded += growth;
-    }
-
-    if (s.season === "autumn" && patch.green > 2) {
-      const seedGain = patch.green * PATCH.autumnSeedRate * multiplier * dt;
-      patch.seeds = LG.clamp(patch.seeds + seedGain, 0, PATCH.maxSeeds);
-      const dryGain = Math.min(patch.green, patch.green * 0.13 * dt);
-      patch.green -= dryGain;
-      patch.dry = LG.clamp(patch.dry + dryGain, 0, PATCH.maxDry);
-    }
-
-    if (s.season === "winter" && s.rules.fullSeasons && patch.green > 0) {
-      const withered = Math.min(patch.green, PATCH.winterWither * dt);
-      patch.green -= withered;
-      patch.dry = LG.clamp(patch.dry + withered * 0.82, 0, PATCH.maxDry);
-    }
-
-    const decayRate = s.season === "spring" ? PATCH.dryDecaySpring : PATCH.dryDecayOther;
-    const dryDecay = Math.min(patch.dry, patch.dry * decayRate * dt);
-    patch.dry -= dryDecay;
-    patch.fertility = LG.clamp(
-      patch.fertility + dryDecay * PATCH.fertilityGain - growthAdded * PATCH.fertilityCost,
-      0.35,
-      1.3,
-    );
-
-    if (patch.green < 3 && patch.dry < 2) {
-      patch.rootBiomass = Math.max(0, patch.rootBiomass - 1.4 * dt);
-    }
-    patch.seeds = Math.max(0, patch.seeds - patch.seeds * PATCH.seedDecay * dt);
-    patch.green = LG.clamp(patch.green, 0, PATCH.maxGreen);
-    patch.dry = LG.clamp(patch.dry, 0, PATCH.maxDry);
-    maybeDisperseSeed(patch, dt);
-    patch.barrenAge = patch.green + patch.dry + patch.seeds + patch.rootBiomass < 0.5
-      ? patch.barrenAge + dt
-      : 0;
-  }
-
-  LG.updatePatches = (dt) => {
-    for (let index = s.patches.length - 1; index >= 0; index -= 1) {
-      const patch = s.patches[index];
-      updatePatch(patch, dt);
-      if (patch.barrenAge > 1.5) s.patches.splice(index, 1);
-    }
-    if (s.springBaseline && s.springRecoveryYear !== s.springBaseline.year && s.season === "spring") {
-      const totals = LG.getResourceTotals();
-      if (totals.green >= s.springBaseline.green + 65) {
-        s.springRecoveryYear = s.springBaseline.year;
-        LG.incrementMetric("springRecoveries");
-        if (!s.eventFlags.firstSpringRecovery) {
-          s.eventFlags.firstSpringRecovery = true;
-          LG.addEvent("草地第一次依靠地下根系完成明显春季恢复。 ");
-        }
-      }
-    }
-  };
-
-  function chooseFoodPatch(grazer) {
+  function chooseFoodCell(grazer) {
     const senseRadius = statsOf(grazer).senseRadius;
+    const cellWidth = LG.GRID?.cellWidth || 32;
+    const cellHeight = LG.GRID?.cellHeight || 32;
+    const crowdRadius = Math.hypot(cellWidth, cellHeight) * 0.5 + 75;
     let best = null;
     let bestScore = -Infinity;
-    for (const patch of s.patches) {
-      const food = patch.green + patch.dry * 0.38;
-      if (food < 1) continue;
-      const distance = Math.sqrt(LG.distanceSquared(grazer, patch));
-      if (distance > senseRadius) continue;
-      const localGrazers = perceivedWithin(patch, s.grazers, patch.radius + 75).length;
+
+    for (const cell of terrainCellsWithin(grazer, senseRadius)) {
+      const food = cell.green + cell.dry * 0.38;
+      if (food < 0.12) continue;
+      const distance = Math.sqrt(LG.distanceSquared(grazer, cell));
+      const localGrazers = perceivedWithin(cell, s.grazers, crowdRadius).length;
       const score = food * 1.22 - distance * 0.24 - localGrazers * 10;
       if (score > bestScore) {
         bestScore = score;
-        best = patch;
+        best = cell;
       }
     }
     return best;
+  }
+
+  function consumeTerrainCell(grazer, cell, dt, derived, config) {
+    const cellWidth = LG.GRID?.cellWidth || 32;
+    const cellHeight = LG.GRID?.cellHeight || 32;
+    const reach = Math.hypot(cellWidth, cellHeight) * 0.5 + 9;
+    if (LG.distanceSquared(grazer, cell) >= reach * reach) return 0;
+
+    let eaten = 0;
+    if (cell.green > 0.15) {
+      eaten = Math.min(cell.green, config.eatRate * dt);
+      cell.green -= eaten;
+      cell.rootBiomass = Math.max(0, cell.rootBiomass - eaten * 0.012);
+      grazer.energy = Math.min(derived.maxEnergy, grazer.energy + eaten * config.greenEnergy);
+      LG.incrementMetric("greenConsumed", eaten);
+    } else if (cell.dry > 0.05) {
+      eaten = Math.min(cell.dry, config.eatRate * 0.58 * dt);
+      cell.dry -= eaten;
+      grazer.energy = Math.min(derived.maxEnergy, grazer.energy + eaten * config.dryEnergy);
+      LG.incrementMetric("dryConsumed", eaten);
+    }
+
+    if (eaten > 0) {
+      grazer.lastMealAge = 0;
+      cell.lastDisturbedYear = s.year;
+    }
+    return eaten;
   }
 
   function localDensityPressure(animal, type) {
@@ -323,7 +220,7 @@
     s.effects.push({ kind: "birth", x: child.x, y: child.y, age: 0, color: config.color });
     if (!s.eventFlags.firstInheritedBirth) {
       s.eventFlags.firstInheritedBirth = true;
-      LG.addEvent(`第一个遗传后代诞生：其属性由双亲等位基因重组并叠加发育环境形成。`);
+      LG.addEvent("第一个遗传后代诞生：其属性由双亲等位基因重组并叠加发育环境形成。");
     }
     if (type === "hunter" && !s.eventFlags.firstHunterBirth) {
       s.eventFlags.firstHunterBirth = true;
@@ -457,28 +354,12 @@
         grazer.energy -= config.sprintDrain * dt;
       } else {
         grazer.stamina = Math.min(derived.staminaMax, grazer.stamina + derived.staminaRecovery * dt);
-        const patch = chooseFoodPatch(grazer);
-        if (patch) {
-          const angle = Math.atan2(patch.y - grazer.y, patch.x - grazer.x);
+        const cell = chooseFoodCell(grazer);
+        if (cell) {
+          const angle = Math.atan2(cell.y - grazer.y, cell.x - grazer.x);
           const stageSpeed = stage === "juvenile" ? 0.78 : stage === "elder" ? 0.82 : 1;
           LG.moveAnimal(grazer, angle, derived.walkSpeed * stageSpeed, dt);
-          const reach = patch.radius * 0.72 + 9;
-          if (LG.distanceSquared(grazer, patch) < reach * reach) {
-            let eaten = 0;
-            if (patch.green > 4) {
-              eaten = Math.min(patch.green, config.eatRate * dt);
-              patch.green -= eaten;
-              patch.rootBiomass = Math.max(0, patch.rootBiomass - eaten * 0.012);
-              grazer.energy = Math.min(derived.maxEnergy, grazer.energy + eaten * config.greenEnergy);
-              LG.incrementMetric("greenConsumed", eaten);
-            } else if (patch.dry > 0.25) {
-              eaten = Math.min(patch.dry, config.eatRate * 0.58 * dt);
-              patch.dry -= eaten;
-              grazer.energy = Math.min(derived.maxEnergy, grazer.energy + eaten * config.dryEnergy);
-              LG.incrementMetric("dryConsumed", eaten);
-            }
-            if (eaten > 0) grazer.lastMealAge = 0;
-          }
+          consumeTerrainCell(grazer, cell, dt, derived, config);
         } else {
           LG.wander(grazer, derived.walkSpeed * 0.55, dt);
         }
@@ -489,6 +370,14 @@
     }
     attemptLocalReproduction("grazer", dt);
   };
+
+  LG.terrainFeedingModel = Object.freeze({
+    version: "grid-native-v1",
+    source: "64x40-vegetation-grid",
+    binding: "simulation-native",
+    legacyCircularFeeding: false,
+    nativeGridFeeding: true,
+  });
 
   function chooseHunterTarget(hunter) {
     const derived = statsOf(hunter);
