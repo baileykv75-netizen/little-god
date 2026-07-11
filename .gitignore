@@ -1,0 +1,15 @@
+# Operating system
+.DS_Store
+Thumbs.db
+
+# Editors
+.vscode/
+.idea/
+*.swp
+
+# Local servers and logs
+*.log
+
+# Future dependency folders
+node_modules/
+dist/
