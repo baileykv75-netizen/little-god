@@ -10,6 +10,13 @@
     return Math.max(0, Math.min(1, numeric));
   };
 
+  function usesLegacyPatchFood() {
+    const storeRejectsLegacyPatches = LG.terrainStoreModel?.legacyPatchCollectionFeedsAnimals === false;
+    const feedingIsGridNative = LG.terrainFeedingModel?.nativeGridFeeding === true
+      && LG.terrainFeedingModel?.legacyCircularFeeding === false;
+    return !(storeRejectsLegacyPatches && feedingIsGridNative);
+  }
+
   LG.getTerrainDiagnostics = () => {
     const vegetation = typeof LG.getVegetationDiagnostics === "function"
       ? LG.getVegetationDiagnostics()
@@ -44,6 +51,7 @@
       bareCoverage,
       hotspots: grazingHotspots,
       grazingHotspots,
+      usesLegacyPatchFood: usesLegacyPatchFood(),
       budget: { ...(vegetation?.budget || {}) },
       resources: {
         greenBiomass: totals.green,
