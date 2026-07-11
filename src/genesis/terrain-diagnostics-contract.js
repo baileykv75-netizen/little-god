@@ -27,6 +27,9 @@
     const greenCoverage = asCoverage(vegetation?.vegetatedCoverage, 0);
     const rootCoverage = asCoverage(vegetation?.rootCoverage, 0);
     const bareCoverage = asCoverage(vegetation?.bareCoverage, 1);
+    const grazingHotspots = Array.isArray(vegetation?.hotspots)
+      ? vegetation.hotspots.map((hotspot) => ({ ...hotspot }))
+      : [];
 
     const result = {
       version: "terrain-grid-diagnostics-v1",
@@ -39,7 +42,8 @@
       vegetatedCoverage: greenCoverage,
       rootCoverage,
       bareCoverage,
-      hotspots: vegetation?.hotspots ?? [],
+      hotspots: grazingHotspots,
+      grazingHotspots,
       budget: { ...(vegetation?.budget || {}) },
       resources: {
         greenBiomass: totals.green,
