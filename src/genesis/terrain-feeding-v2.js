@@ -14,8 +14,6 @@
     if (proxy) return proxy;
     proxy = new Proxy(cell, {
       get(target, property, receiver) {
-        // The old grazer loop used a circular patch radius as its feeding reach.
-        // Grid cells deliberately expose no usable circular feeding radius here.
         if (property === "radius") return Number.NaN;
         return Reflect.get(target, property, receiver);
       },
@@ -29,8 +27,10 @@
 
   function withLegacyFeedingDisabled(callback) {
     const terrainCells = state.patches;
-    const safeView = terrainCells.map(legacySafeCell);
-    state.patches = safeView;
+    const safeGridView = terrainCells
+      .filter((cell) => cell?.isGridCell === true)
+      .map(legacySafeCell);
+    state.patches = safeGridView;
     try {
       callback();
     } finally {
@@ -89,8 +89,6 @@
   };
 
   LG.updateGrazers = (dt) => {
-    // Preserve movement, lifecycle and reproduction from the established loop,
-    // while preventing its legacy radius-based patch consumption from firing.
     withLegacyFeedingDisabled(() => originalUpdateGrazers.call(LG, dt));
 
     for (const grazer of state.grazers) {
@@ -106,7 +104,7 @@
   };
 
   LG.terrainFeedingModel = Object.freeze({
-    version: "grid-local-v1",
+    version: "grid-local-v2",
     source: "64x40-vegetation-grid",
     legacyCircularFeeding: false,
   });
