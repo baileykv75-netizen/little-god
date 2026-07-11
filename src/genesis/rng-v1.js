@@ -49,6 +49,15 @@
     LG.state.randomDraws = draws;
   }
 
+  function renderSeedLabel() {
+    if (typeof document === "undefined") return;
+    const label = document.querySelector(".build-version");
+    if (!label) return;
+    const compactSeed = seed.length > 18 ? `${seed.slice(0, 15)}…` : seed;
+    label.textContent = `v0.4.8 · seed ${compactSeed}`;
+    label.title = `实验种子：${seed}。使用 ?seed=${encodeURIComponent(seed)} 可复现实验。`;
+  }
+
   function rewind() {
     seedHash = hashSeed(seed);
     state = seedHash;
@@ -77,6 +86,7 @@
     seed = normalizeSeed(value);
     seedSource = "api";
     rewind();
+    renderSeedLabel();
     if (options.resetWorld === true) LG.seedWorld();
     return LG.getExperimentDiagnostics();
   };
@@ -102,4 +112,11 @@
   };
 
   rewind();
+  if (typeof document !== "undefined") {
+    if (document.readyState === "loading") {
+      document.addEventListener("DOMContentLoaded", renderSeedLabel, { once: true });
+    } else {
+      renderSeedLabel();
+    }
+  }
 })();
