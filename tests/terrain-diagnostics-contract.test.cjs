@@ -38,6 +38,7 @@ const context = {
   Object,
   Number,
   Math,
+  Array,
 };
 vm.createContext(context);
 vm.runInContext(
@@ -71,7 +72,13 @@ assert.equal(diagnostics.coverage.rooted, 0.37);
 assert.equal(diagnostics.resources.greenBiomass, 4059);
 assert.equal(diagnostics.resources.rootBiomass, 610);
 assert.equal(diagnostics.resources.averageFertility, 0.9);
-assert.equal(diagnostics.hotspots.length, 1);
+assert.ok(Array.isArray(diagnostics.hotspots));
+assert.ok(Array.isArray(diagnostics.grazingHotspots));
+assert.equal(diagnostics.grazingHotspots.length, 1);
+assert.equal(diagnostics.grazingHotspots[0].column, 12);
+assert.equal(diagnostics.grazingHotspots[0].row, 8);
+assert.equal(diagnostics.grazingHotspots[0].pressure, 2.4);
+assert.notStrictEqual(diagnostics.grazingHotspots, LittleGod.getVegetationDiagnostics().hotspots);
 assert.equal(diagnostics.resourceBudget.grazingRemoved, 5);
 
 for (const key of ["green", "root", "roots", "bare", "barren"]) {
