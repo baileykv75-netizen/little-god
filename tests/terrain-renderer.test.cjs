@@ -17,6 +17,8 @@ for (let row = 0; row < GRID.rows; row += 1) {
   for (let column = 0; column < GRID.columns; column += 1) {
     terrainCells.push({
       isGridCell: true,
+      gridColumn: column,
+      gridRow: row,
       x: (column + 0.5) * GRID.cellWidth,
       y: (row + 0.5) * GRID.cellHeight,
       green: column < 24 ? 8 : 0,
@@ -48,7 +50,7 @@ Object.defineProperty(state, "patches", {
   },
 });
 
-const calls = { drawImage: 0, putImageData: 0, ellipse: 0 };
+const calls = { drawImage: 0, putImageData: 0, ellipse: 0, toast: [] };
 function makeContext(offscreen = false) {
   return {
     createImageData(width, height) {
@@ -69,6 +71,26 @@ const rasterContext = makeContext(true);
 const mainCanvas = { width: 960, height: 600, getContext: () => mainContext };
 const rasterCanvas = { width: 0, height: 0, getContext: () => rasterContext };
 
+let heatmapButton = null;
+const controls = {
+  appended: [],
+  append(node) { this.appended.push(node); },
+};
+function createButton() {
+  const listeners = {};
+  return {
+    id: "",
+    type: "",
+    className: "",
+    textContent: "",
+    title: "",
+    attributes: {},
+    setAttribute(name, value) { this.attributes[name] = value; },
+    addEventListener(type, callback) { listeners[type] = callback; },
+    click() { listeners.click?.(); },
+  };
+}
+
 const LittleGod = {
   state,
   WORLD: { width: 2048, height: 1280 },
@@ -77,6 +99,7 @@ const LittleGod = {
   getTerrainCells: () => terrainCells,
   clamp: (value, min, max) => Math.max(min, Math.min(max, value)),
   lifeStage: () => "adult",
+  showToast: (message) => calls.toast.push(message),
   camera: {
     zoom: 1,
     apply() {},
@@ -89,12 +112,18 @@ const context = {
   window: { LittleGod },
   document: {
     querySelector(selector) {
-      assert.equal(selector, "#worldCanvas");
-      return mainCanvas;
+      if (selector === "#worldCanvas") return mainCanvas;
+      if (selector === "#cameraControls") return controls;
+      if (selector === "#activityHeatmapToggle") return heatmapButton;
+      return null;
     },
     createElement(tag) {
-      assert.equal(tag, "canvas");
-      return rasterCanvas;
+      if (tag === "canvas") return rasterCanvas;
+      if (tag === "button") {
+        heatmapButton = createButton();
+        return heatmapButton;
+      }
+      throw new Error(`Unexpected element: ${tag}`);
     },
   },
   requestAnimationFrame(callback) { queuedFrames.push(callback); },
@@ -103,6 +132,7 @@ const context = {
   Number,
   Array,
   Object,
+  Float32Array,
   Uint8ClampedArray,
   Error,
 };
@@ -113,22 +143,42 @@ vm.runInContext(
   { filename: "src/genesis/terrain-renderer-v2.js" },
 );
 
-assert.equal(LittleGod.terrainRendererModel.version, "continuous-raster-v1");
+assert.equal(LittleGod.terrainRendererModel.version, "continuous-raster-v2");
 assert.equal(LittleGod.terrainRendererModel.source, "state.terrainCells");
 assert.equal(LittleGod.terrainRendererModel.usesLegacyPatchShapes, false);
 assert.equal(LittleGod.terrainRendererModel.smoothInterpolation, true);
+assert.equal(LittleGod.terrainRendererModel.activityHeatmap, true);
 assert.equal(LittleGod.terrainRendererModel.gridColumns, 64);
 assert.equal(LittleGod.terrainRendererModel.gridRows, 40);
 assert.equal(LittleGod.terrainRendererModel.rasterColumns, 128);
 assert.equal(LittleGod.terrainRendererModel.rasterRows, 80);
 assert.equal(typeof LittleGod.renderContinuousTerrainFrame, "function");
+assert.equal(typeof LittleGod.getActivityHeatmapDiagnostics, "function");
 assert.equal(queuedFrames.length, 1);
+assert.equal(controls.appended.length, 1);
+assert.equal(heatmapButton.id, "activityHeatmapToggle");
+assert.equal(heatmapButton.attributes["aria-pressed"], "false");
 
 LittleGod.renderContinuousTerrainFrame(1000);
+const before = LittleGod.getActivityHeatmapDiagnostics();
+assert.equal(before.enabled, false);
+assert.ok(before.cellsWithActivity > 0, "Grazing pressure should create observable hotspots");
+assert.ok(before.peakIntensity > 0);
+assert.ok(Array.isArray(before.hotspots));
+
+heatmapButton.click();
+assert.equal(state.showActivityHeatmap, true);
+assert.equal(heatmapButton.attributes["aria-pressed"], "true");
+assert.equal(calls.toast.at(-1), "活动热区已开启");
+LittleGod.renderContinuousTerrainFrame(1100);
+const after = LittleGod.getActivityHeatmapDiagnostics();
+assert.equal(after.enabled, true);
+assert.ok(after.hotspots.length > 0);
+assert.notStrictEqual(after.hotspots, before.hotspots);
 
 assert.equal(legacyPatchReads, 0);
-assert.equal(calls.putImageData, 1, "Terrain raster should be rebuilt from canonical cells");
-assert.equal(calls.drawImage, 1, "Continuous raster should be drawn as one smoothed surface");
+assert.equal(calls.putImageData, 2, "Terrain raster should rebuild when the heatmap toggles");
+assert.equal(calls.drawImage, 2, "Continuous raster should remain the final terrain surface");
 assert.equal(calls.ellipse, 0, "Terrain drawing must not use circular patch shapes");
 
 console.log("terrain-renderer.test: PASS");
