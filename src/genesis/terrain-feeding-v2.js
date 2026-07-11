@@ -3,10 +3,12 @@
 
   const LG = window.LittleGod;
   if (!LG) throw new Error("Terrain feeding requires LittleGod core");
+  if (typeof LG.getEstablishedGrazerLoop !== "function" || typeof LG.setTerrainGrazerUpdater !== "function") {
+    throw new Error("Terrain feeding bootstrap must load before simulation.js");
+  }
 
   const { state, SPECIES } = LG;
   const legacyViewCache = new WeakMap();
-  let legacyUpdateGrazers = null;
 
   function legacySafeCell(cell) {
     let proxy = legacyViewCache.get(cell);
@@ -27,14 +29,16 @@
   }
 
   function runEstablishedGrazerLoop(dt) {
-    if (typeof legacyUpdateGrazers !== "function") return;
+    const establishedLoop = LG.getEstablishedGrazerLoop();
+    if (typeof establishedLoop !== "function") return;
+
     const terrainCells = state.patches;
     const safeGridView = terrainCells
       .filter((cell) => cell?.isGridCell === true)
       .map(legacySafeCell);
     state.patches = safeGridView;
     try {
-      legacyUpdateGrazers.call(LG, dt);
+      establishedLoop.call(LG, dt);
     } finally {
       state.patches = terrainCells;
     }
@@ -105,21 +109,11 @@
     }
   }
 
-  Object.defineProperty(LG, "updateGrazers", {
-    configurable: true,
-    get() {
-      return updateGrazersFromTerrain;
-    },
-    set(value) {
-      legacyUpdateGrazers = value;
-    },
-  });
-
-  LG.getEstablishedGrazerLoop = () => legacyUpdateGrazers;
+  LG.setTerrainGrazerUpdater(updateGrazersFromTerrain);
   LG.terrainFeedingModel = Object.freeze({
-    version: "grid-local-v3",
+    version: "grid-local-v4",
     source: "64x40-vegetation-grid",
     legacyCircularFeeding: false,
-    binding: "pre-simulation-accessor",
+    binding: "captured-before-simulation",
   });
 })();
