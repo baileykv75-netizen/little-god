@@ -3,16 +3,17 @@ const vm = require("vm");
 const assert = require("assert");
 
 const gridCell = {
+  id: 1,
   isGridCell: true,
   x: 100,
   y: 100,
-  radius: 80,
   green: 10,
   dry: 0,
   rootBiomass: 4,
   lastDisturbedYear: -Infinity,
 };
 const legacyCircularPatch = {
+  id: 2,
   isGridCell: false,
   x: 100,
   y: 100,
@@ -22,58 +23,108 @@ const legacyCircularPatch = {
   rootBiomass: 20,
 };
 const grazer = {
+  id: 3,
+  type: "grazer",
   x: 100,
   y: 100,
+  angle: 0,
+  age: 2,
+  lifespan: 12,
   energy: 10,
+  stamina: 100,
   lastMealAge: 2,
-  derived: { maxEnergy: 100, threatRadius: 40 },
+  reproductionCooldown: 1,
+  traits: { agility: 50, caution: 50 },
+  derived: {
+    walkSpeed: 0,
+    burstSpeed: 0,
+    maxEnergy: 100,
+    baseDrain: 0,
+    staminaMax: 100,
+    staminaRecovery: 0,
+    lifespan: 12,
+    fertilityMultiplier: 1,
+    senseRadius: 180,
+    threatRadius: 40,
+    mateRange: 220,
+    combatBase: 50,
+  },
 };
 
 const LittleGod = {
+  WORLD: { width: 2048, height: 1280, maxAnimals: 180, missionYears: 8, trendWindowYears: 1 },
+  GRID: { columns: 64, rows: 40, cellWidth: 32, cellHeight: 32 },
+  SPECIES: {
+    grazer: {
+      walkSpeed: 0,
+      sprintSpeed: 0,
+      maxEnergy: 100,
+      baseDrain: 0,
+      staminaMax: 100,
+      staminaRecovery: 0,
+      lifespan: [10, 15],
+      senseRadius: 180,
+      threatRadius: 40,
+      winterDrain: 1,
+      staminaDrain: 0,
+      sprintDrain: 0,
+      eatRate: 10,
+      greenEnergy: 1,
+      dryEnergy: 0.5,
+      elderAgeRatio: 0.8,
+      minReproductionAge: 1,
+      reproductionEnergy: 70,
+      reproductionCost: 20,
+      reproductionCooldown: 1,
+      color: "#000",
+    },
+    hunter: {
+      walkSpeed: 0,
+      chaseSpeed: 0,
+      maxEnergy: 100,
+      baseDrain: 0,
+      staminaMax: 100,
+      staminaRecovery: 0,
+      lifespan: [10, 15],
+      senseRadius: 180,
+      threatRadius: 40,
+      winterDrain: 1,
+      staminaDrain: 0,
+      chaseDrain: 0,
+      elderAgeRatio: 0.8,
+      reproductionEnergy: 70,
+      reproductionCost: 20,
+      reproductionCooldown: 1,
+      color: "#000",
+    },
+  },
   state: {
     patches: [legacyCircularPatch, gridCell],
     grazers: [grazer],
     hunters: [],
+    carcasses: [],
+    effects: [],
+    rules: { fullSeasons: true, fertility: 1 },
+    season: "spring",
     year: 2,
-  },
-  GRID: {
-    columns: 64,
-    rows: 40,
-    cellWidth: 32,
-    cellHeight: 32,
-  },
-  SPECIES: {
-    grazer: {
-      eatRate: 10,
-      greenEnergy: 1,
-      dryEnergy: 0.5,
-      maxEnergy: 100,
-      threatRadius: 40,
-    },
-  },
-  getVegetationDiagnostics() {
-    return {
-      columns: 64,
-      rows: 40,
-      cellCount: 2560,
-      vegetatedCoverage: 0.5,
-      rootCoverage: 0.4,
-      bareCoverage: 0.2,
-      hotspots: [],
-      budget: {},
-    };
-  },
-  getResourceTotals() {
-    return { green: 10, dry: 0, seeds: 0, roots: 4, fertility: 2560 };
+    ledger: {},
+    lifetime: {},
+    eventFlags: {},
   },
   getVegetationCellsInRadius() {
     return this.state.patches;
   },
-  incrementMetric(key, amount) {
+  distanceSquared(a, b) {
+    return (a.x - b.x) ** 2 + (a.y - b.y) ** 2;
+  },
+  turnToward(current) { return current; },
+  clamp(value, min, max) { return Math.max(min, Math.min(max, value)); },
+  randomBetween(min, max) { return (min + max) / 2; },
+  lifeStage() { return "adult"; },
+  incrementMetric(key, amount = 1) {
     this.metrics[key] = (this.metrics[key] || 0) + amount;
   },
   metrics: {},
-  findNearest() { return null; },
 };
 
 const context = {
@@ -82,53 +133,33 @@ const context = {
   Number,
   Math,
   Object,
-  Proxy,
-  Reflect,
-  WeakMap,
-  TypeError,
+  Set,
 };
 vm.createContext(context);
-
 vm.runInContext(
-  fs.readFileSync("src/genesis/terrain-diagnostics-contract.js", "utf8"),
+  fs.readFileSync("src/genesis/simulation.js", "utf8"),
   context,
-  { filename: "src/genesis/terrain-diagnostics-contract.js" },
-);
-
-// This assignment represents simulation.js loading after the bootstrap.
-LittleGod.updateGrazers = function establishedGrazerLoop() {
-  for (const legacyPatch of this.state.patches) {
-    const reach = legacyPatch.radius * 0.72 + 9;
-    if ((legacyPatch.x - grazer.x) ** 2 + (legacyPatch.y - grazer.y) ** 2 < reach * reach) {
-      legacyPatch.green -= 5;
-      break;
-    }
-  }
-};
-
-vm.runInContext(
-  fs.readFileSync("src/genesis/terrain-feeding-v2.js", "utf8"),
-  context,
-  { filename: "src/genesis/terrain-feeding-v2.js" },
+  { filename: "src/genesis/simulation.js" },
 );
 
 assert.equal(LittleGod.terrainFeedingModel.legacyCircularFeeding, false);
-assert.equal(LittleGod.terrainFeedingModel.version, "grid-local-v4");
-assert.equal(LittleGod.terrainFeedingModel.binding, "captured-before-simulation");
-assert.equal(typeof LittleGod.getEstablishedGrazerLoop(), "function");
-assert.equal(typeof LittleGod.consumeTerrainFoodAt, "function");
-assert.equal(typeof LittleGod.getTerrainFeedingCell, "function");
+assert.equal(LittleGod.terrainFeedingModel.nativeGridFeeding, true);
+assert.equal(LittleGod.terrainFeedingModel.binding, "simulation-native");
 
 LittleGod.updateGrazers(0.1);
 
 assert.equal(legacyCircularPatch.green, 50,
-  "Legacy circular patches must not be visible to or consumed by the grazer loop");
+  "Legacy circular patches must not be selected or consumed");
 assert.equal(gridCell.green, 9,
-  "Only the local grid cell should be consumed by eatRate * dt");
+  "The nearby grid cell should be consumed by eatRate * dt");
 assert.equal(grazer.energy, 11);
 assert.equal(grazer.lastMealAge, 0);
 assert.equal(LittleGod.metrics.greenConsumed, 1);
-assert.deepEqual(LittleGod.state.patches, [legacyCircularPatch, gridCell],
-  "The real terrain collection must be restored after the established loop");
+
+const simulationSource = fs.readFileSync("src/genesis/simulation.js", "utf8");
+assert.equal(simulationSource.includes("patch.radius"), false,
+  "Native grazer feeding must not use circular patch radius");
+assert.equal(simulationSource.includes("chooseFoodPatch"), false,
+  "Native grazer feeding must not call the legacy patch selector");
 
 console.log("terrain-feeding-v2.test: PASS");
