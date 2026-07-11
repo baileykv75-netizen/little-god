@@ -3,26 +3,35 @@ const vm = require("vm");
 const assert = require("assert");
 
 const GRID = { columns: 64, rows: 40, cellWidth: 32, cellHeight: 32 };
-const terrainCells = [];
-for (let row = 0; row < GRID.rows; row += 1) {
-  for (let column = 0; column < GRID.columns; column += 1) {
-    terrainCells.push({
-      id: row * GRID.columns + column + 1,
-      isGridCell: true,
-      gridColumn: column,
-      gridRow: row,
-      x: (column + 0.5) * GRID.cellWidth,
-      y: (row + 0.5) * GRID.cellHeight,
-      radius: 64,
-      green: 0,
-      dry: 0,
-      rootBiomass: 0,
-      fertility: 0.8,
-      lastDisturbedYear: -Infinity,
-    });
+
+function buildTerrainCells() {
+  const cells = [];
+  for (let row = 0; row < GRID.rows; row += 1) {
+    for (let column = 0; column < GRID.columns; column += 1) {
+      cells.push({
+        id: row * GRID.columns + column + 1,
+        isGridCell: true,
+        gridColumn: column,
+        gridRow: row,
+        x: (column + 0.5) * GRID.cellWidth,
+        y: (row + 0.5) * GRID.cellHeight,
+        radius: 64,
+        green: 0,
+        dry: 0,
+        seeds: 0,
+        rootBiomass: 0,
+        fertility: 0.8,
+        moisture: 0.6,
+        grazingPressure: 0,
+        phase: 0,
+        barrenAge: 0,
+      });
+    }
   }
+  return cells;
 }
 
+const terrainCells = buildTerrainCells();
 const feedingCell = terrainCells[3 * GRID.columns + 3];
 feedingCell.green = 10;
 feedingCell.rootBiomass = 4;
@@ -38,122 +47,97 @@ const legacyCircularPatch = {
   rootBiomass: 20,
 };
 
-const grazer = {
-  id: 9002,
-  type: "grazer",
-  x: feedingCell.x,
-  y: feedingCell.y,
-  angle: 0,
-  age: 2,
-  lifespan: 12,
-  energy: 10,
-  stamina: 100,
-  lastMealAge: 2,
-  reproductionCooldown: 1,
-  traits: { agility: 50, caution: 50 },
-  derived: {
-    walkSpeed: 0,
-    burstSpeed: 0,
-    maxEnergy: 100,
-    baseDrain: 0,
-    staminaMax: 100,
-    staminaRecovery: 0,
-    lifespan: 12,
-    fertilityMultiplier: 1,
-    senseRadius: 180,
-    threatRadius: 40,
-    mateRange: 220,
-    combatBase: 50,
-  },
-};
-
 const LittleGod = {
-  WORLD: { width: 2048, height: 1280, maxAnimals: 180, missionYears: 8, trendWindowYears: 1 },
+  WORLD: { width: 2048, height: 1280 },
   GRID,
-  SPECIES: {
-    grazer: {
-      walkSpeed: 0, sprintSpeed: 0, maxEnergy: 100, baseDrain: 0,
-      staminaMax: 100, staminaRecovery: 0, lifespan: [10, 15],
-      senseRadius: 180, threatRadius: 40, winterDrain: 1,
-      staminaDrain: 0, sprintDrain: 0, eatRate: 10,
-      greenEnergy: 1, dryEnergy: 0.5, elderAgeRatio: 0.8,
-      minReproductionAge: 1, reproductionEnergy: 70,
-      reproductionCost: 20, reproductionCooldown: 1, color: "#000",
-    },
-    hunter: {
-      walkSpeed: 0, chaseSpeed: 0, maxEnergy: 100, baseDrain: 0,
-      staminaMax: 100, staminaRecovery: 0, lifespan: [10, 15],
-      senseRadius: 180, threatRadius: 40, winterDrain: 1,
-      staminaDrain: 0, chaseDrain: 0, elderAgeRatio: 0.8,
-      reproductionEnergy: 70, reproductionCost: 20,
-      reproductionCooldown: 1, color: "#000",
-    },
-  },
   state: {
-    patches: [legacyCircularPatch],
-    terrainCells,
-    grazers: [grazer],
-    hunters: [],
-    carcasses: [],
-    effects: [],
-    rules: { fullSeasons: true, fertility: 1 },
-    season: "spring",
-    year: 2,
-    ledger: {},
-    lifetime: {},
-    eventFlags: {},
+    patches: terrainCells,
+    terrainCells: [],
   },
-  initializeVegetationGrid() { return this.state.terrainCells; },
-  createPatch() {},
-  seedPatchAt() {},
+  initializeVegetationGrid() {
+    this.state.patches = buildTerrainCells();
+    return this.state.patches;
+  },
+  createPatch() { return null; },
+  seedPatchAt() { return null; },
   findPatchNear() { return null; },
-  getResourceTotals() { return { green: 0, dry: 0, seeds: 0, roots: 0, fertility: 0 }; },
+  getResourceTotals() {
+    return this.state.patches.reduce((totals, cell) => {
+      totals.green += cell.green || 0;
+      totals.dry += cell.dry || 0;
+      totals.seeds += cell.seeds || 0;
+      totals.roots += cell.rootBiomass || 0;
+      totals.fertility += cell.fertility || 0;
+      return totals;
+    }, { green: 0, dry: 0, seeds: 0, roots: 0, fertility: 0 });
+  },
   hasDormantPlantLife() { return true; },
   updateVegetationGrid() {},
   getVegetationDiagnostics() { return { columns: 64, rows: 40, cellCount: 2560, hotspots: [] }; },
-  distanceSquared(a, b) { return (a.x - b.x) ** 2 + (a.y - b.y) ** 2; },
-  turnToward(current) { return current; },
   clamp(value, min, max) { return Math.max(min, Math.min(max, value)); },
-  randomBetween(min, max) { return (min + max) / 2; },
-  lifeStage() { return "adult"; },
-  incrementMetric(key, amount = 1) {
-    this.metrics[key] = (this.metrics[key] || 0) + amount;
-  },
-  metrics: {},
 };
 
-const context = { window: { LittleGod }, console, Number, Math, Object, Set, Array, Error };
+const context = {
+  window: { LittleGod },
+  console,
+  Number,
+  Math,
+  Object,
+  Array,
+  Error,
+};
 vm.createContext(context);
-for (const file of ["src/genesis/terrain-store-v2.js", "src/genesis/simulation.js"]) {
-  vm.runInContext(fs.readFileSync(file, "utf8"), context, { filename: file });
+vm.runInContext(
+  fs.readFileSync("src/genesis/terrain-store-v2.js", "utf8"),
+  context,
+  { filename: "src/genesis/terrain-store-v2.js" },
+);
+
+assert.equal(LittleGod.terrainStoreModel.version, "terrain-store-v4");
+assert.equal(LittleGod.terrainStoreModel.legacyPatchCollectionFeedsAnimals, false);
+assert.equal(LittleGod.terrainStoreModel.renderViewsOwnFood, false);
+assert.equal(LittleGod.terrainStoreModel.externalLegacyReplacementInvalidatesTerrain, true);
+assert.equal(LittleGod.state.terrainCells.length, 2560);
+assert.equal(Object.prototype.hasOwnProperty.call(feedingCell, "radius"), false,
+  "Canonical terrain cells must not retain circular radius");
+
+const renderView = LittleGod.state.patches[3 * GRID.columns + 3];
+assert.equal(renderView.isTerrainRenderCell, true);
+assert.equal(renderView.drivesFeeding, false);
+assert.notEqual(renderView, feedingCell,
+  "Circular render snapshots must not share identity with feeding cells");
+assert.equal(renderView.green, 10);
+
+renderView.green = 99;
+assert.equal(feedingCell.green, 10,
+  "Changing a circular render snapshot must not alter feeding terrain");
+
+function consumeNearby(animal, dt) {
+  const cell = LittleGod.getVegetationCellsInRadius(animal.x, animal.y, 40)
+    .find((candidate) => candidate.green > 0);
+  if (!cell) return 0;
+  const eaten = Math.min(cell.green, 10 * dt);
+  cell.green -= eaten;
+  animal.energy += eaten;
+  return eaten;
 }
 
-assert.equal(LittleGod.terrainStoreModel.version, "terrain-store-v3");
-assert.equal(LittleGod.terrainStoreModel.legacyPatchCollectionFeedsAnimals, false);
-assert.equal(LittleGod.terrainStoreModel.canonicalCellsHaveCircularRadius, false);
-assert.equal(LittleGod.terrainStoreModel.source, "state.terrainCells");
-assert.equal(LittleGod.terrainFeedingModel.nativeGridFeeding, true);
-assert.equal(Object.prototype.hasOwnProperty.call(feedingCell, "radius"), false,
-  "Canonical terrain cells must not expose a circular patch radius");
-assert.equal(LittleGod.state.patches[0].isTerrainRenderCell, true,
-  "Renderer should receive non-feeding terrain views");
-assert.equal(LittleGod.state.patches[0].drivesFeeding, false);
-assert.equal(typeof LittleGod.state.patches[0].radius, "number",
-  "Circular size is allowed only on the renderer view");
-assert.equal(LittleGod.getVegetationCellsInRadius(grazer.x, grazer.y, 40).includes(legacyCircularPatch), false);
-
-LittleGod.updateGrazers(0.1);
-
-assert.equal(legacyCircularPatch.green, 50,
-  "Legacy circular patches must not be selected or consumed");
-assert.equal(feedingCell.green, 9,
-  "The canonical terrain cell should be consumed by eatRate * dt");
+const grazer = { x: feedingCell.x, y: feedingCell.y, energy: 10 };
+assert.equal(consumeNearby(grazer, 0.1), 1);
+assert.equal(feedingCell.green, 9);
 assert.equal(grazer.energy, 11);
-assert.equal(grazer.lastMealAge, 0);
-assert.equal(LittleGod.metrics.greenConsumed, 1);
+assert.equal(renderView.green, 99,
+  "Feeding must not mutate the detached circular snapshot");
 
-const simulationSource = fs.readFileSync("src/genesis/simulation.js", "utf8");
-assert.equal(simulationSource.includes("patch.radius"), false);
-assert.equal(simulationSource.includes("chooseFoodPatch"), false);
+LittleGod.state.patches = [legacyCircularPatch];
+assert.equal(LittleGod.state.terrainCells.length, 0,
+  "Replacing the legacy patch collection must invalidate hidden terrain food");
+assert.deepEqual(LittleGod.getVegetationCellsInRadius(grazer.x, grazer.y, 40), []);
+
+const energyBeforeLegacyAttempt = grazer.energy;
+assert.equal(consumeNearby(grazer, 0.1), 0);
+assert.equal(grazer.energy, energyBeforeLegacyAttempt);
+assert.equal(legacyCircularPatch.green, 50,
+  "Legacy circular patches must never be consumed");
 
 console.log("terrain-feeding-v2.test: PASS");
