@@ -31,6 +31,14 @@
   const GRID = LG.GRID;
   const GRID_CELL_COUNT = GRID.columns * GRID.rows;
 
+  // Keep the existing renderer and compatibility code on the same per-cell scale.
+  LG.PATCH = Object.freeze({
+    ...LG.PATCH,
+    maxGreen: GRID.maxGreen,
+    maxDry: GRID.maxDry,
+    maxSeeds: GRID.maxSeeds,
+  });
+
   const vegetationTotals = () => ({
     green: 0,
     dry: 0,
