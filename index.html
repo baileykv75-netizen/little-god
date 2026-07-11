@@ -1,0 +1,219 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <meta name="description" content="Little God：投放物种、设定世界法则并观察生态兴衰的创世实验。">
+  <title>Little God · 创世实验</title>
+  <link rel="stylesheet" href="styles/main.css">
+  <script src="src/main.js" defer></script>
+</head>
+<body>
+  <div class="app-shell">
+    <header class="topbar">
+      <div class="brand-block">
+        <div class="brand-mark" aria-hidden="true">✦</div>
+        <div>
+          <p class="eyebrow">CREATION EXPERIMENT 001</p>
+          <h1>Little God</h1>
+        </div>
+      </div>
+
+      <div class="time-controls" aria-label="时间控制">
+        <button id="playToggle" class="primary-button" type="button" aria-pressed="false">
+          <span id="playIcon" aria-hidden="true">▶</span>
+          <span id="playLabel">开始时间</span>
+        </button>
+        <div class="speed-group" role="group" aria-label="世界速度">
+          <button class="speed-button is-active" type="button" data-speed="1">1×</button>
+          <button class="speed-button" type="button" data-speed="4">4×</button>
+          <button class="speed-button" type="button" data-speed="12">12×</button>
+        </div>
+        <button id="resetButton" class="ghost-button" type="button">重置世界</button>
+      </div>
+    </header>
+
+    <main class="workspace">
+      <aside class="panel control-panel" aria-label="创世控制台">
+        <section class="mission-card">
+          <div class="section-heading">
+            <span class="section-icon" aria-hidden="true">◈</span>
+            <div>
+              <p class="eyebrow">创世命题</p>
+              <h2>三类生命共存</h2>
+            </div>
+          </div>
+          <p class="mission-copy">让萌芽、食草兽和猎食兽连续共存300年。</p>
+          <div class="progress-track" aria-label="共存进度">
+            <div id="missionProgress" class="progress-fill"></div>
+          </div>
+          <div class="mission-meta">
+            <span id="missionYears">0 / 300 年</span>
+            <strong id="missionState">尚未开始</strong>
+          </div>
+        </section>
+
+        <section class="control-section">
+          <div class="section-heading compact">
+            <span class="section-icon" aria-hidden="true">✚</span>
+            <div>
+              <p class="eyebrow">创造生命</p>
+              <h2>选择投放物种</h2>
+            </div>
+          </div>
+
+          <div class="species-tools" role="group" aria-label="物种投放工具">
+            <button class="species-button is-active" type="button" data-species="flora" aria-pressed="true">
+              <span class="species-glyph flora-glyph" aria-hidden="true">✿</span>
+              <span class="species-text">
+                <strong>萌芽</strong>
+                <small>每次投放8株</small>
+              </span>
+            </button>
+            <button class="species-button" type="button" data-species="grazer" aria-pressed="false">
+              <span class="species-glyph grazer-glyph" aria-hidden="true">●</span>
+              <span class="species-text">
+                <strong>食草兽</strong>
+                <small>每次投放4只</small>
+              </span>
+            </button>
+            <button class="species-button" type="button" data-species="hunter" aria-pressed="false">
+              <span class="species-glyph hunter-glyph" aria-hidden="true">◆</span>
+              <span class="species-text">
+                <strong>猎食兽</strong>
+                <small>每次投放2只</small>
+              </span>
+            </button>
+          </div>
+
+          <p id="placementHint" class="hint-text">已选择萌芽：点击世界投放一片植物。</p>
+        </section>
+
+        <section class="control-section">
+          <div class="section-heading compact">
+            <span class="section-icon" aria-hidden="true">⚙</span>
+            <div>
+              <p class="eyebrow">世界法则</p>
+              <h2>改变生态倾向</h2>
+            </div>
+          </div>
+
+          <label class="rule-control" for="growthRule">
+            <span class="rule-title">
+              <span>资源繁盛度</span>
+              <output id="growthValue" for="growthRule">1.0×</output>
+            </span>
+            <input id="growthRule" type="range" min="0.5" max="2" step="0.1" value="1">
+            <small>影响萌芽扩散速度</small>
+          </label>
+
+          <label class="rule-control" for="fertilityRule">
+            <span class="rule-title">
+              <span>生命繁殖倾向</span>
+              <output id="fertilityValue" for="fertilityRule">1.0×</output>
+            </span>
+            <input id="fertilityRule" type="range" min="0.5" max="2" step="0.1" value="1">
+            <small>影响动物繁殖概率</small>
+          </label>
+
+          <label class="toggle-control" for="seasonsRule">
+            <span>
+              <strong>严酷季节</strong>
+              <small>周期性冬季会抑制植物并提高消耗</small>
+            </span>
+            <span class="switch">
+              <input id="seasonsRule" type="checkbox" checked>
+              <span class="switch-track" aria-hidden="true"></span>
+            </span>
+          </label>
+        </section>
+
+        <section class="control-section compact-actions">
+          <button id="clearButton" class="danger-button" type="button">清空所有生命</button>
+          <p class="hint-text">清空不会重置世界年龄和规则，适合重新设计生态。</p>
+        </section>
+      </aside>
+
+      <section class="world-column" aria-label="世界画布">
+        <div class="world-frame">
+          <canvas id="worldCanvas" width="960" height="600" aria-label="生态世界，点击可投放当前选择的物种"></canvas>
+
+          <div class="world-hud top-left" aria-live="polite">
+            <span id="worldAge">第 0 年</span>
+            <strong id="seasonLabel">温和季</strong>
+          </div>
+
+          <div id="pauseBanner" class="pause-banner">时间尚未开始</div>
+          <div id="worldToast" class="world-toast" role="status" aria-live="polite"></div>
+        </div>
+
+        <div class="world-footer">
+          <div class="legend" aria-label="物种图例">
+            <span><i class="legend-shape flora"></i>萌芽</span>
+            <span><i class="legend-shape grazer"></i>食草兽</span>
+            <span><i class="legend-shape hunter"></i>猎食兽</span>
+          </div>
+          <p>提示：猎食兽太多会先让猎物灭绝，随后自己也会因饥饿消失。</p>
+        </div>
+      </section>
+
+      <aside class="panel journal-panel" aria-label="世界观察记录">
+        <section>
+          <div class="section-heading compact">
+            <span class="section-icon" aria-hidden="true">◎</span>
+            <div>
+              <p class="eyebrow">实时观察</p>
+              <h2>生命统计</h2>
+            </div>
+          </div>
+
+          <div class="stat-grid">
+            <article class="stat-card flora-stat">
+              <span>萌芽</span>
+              <strong id="floraCount">0</strong>
+              <small id="floraTrend">稳定</small>
+            </article>
+            <article class="stat-card grazer-stat">
+              <span>食草兽</span>
+              <strong id="grazerCount">0</strong>
+              <small id="grazerTrend">稳定</small>
+            </article>
+            <article class="stat-card hunter-stat">
+              <span>猎食兽</span>
+              <strong id="hunterCount">0</strong>
+              <small id="hunterTrend">稳定</small>
+            </article>
+          </div>
+        </section>
+
+        <section class="balance-section">
+          <div class="balance-heading">
+            <span>生态状态</span>
+            <strong id="balanceLabel">等待时间开始</strong>
+          </div>
+          <div class="balance-meter" aria-hidden="true">
+            <div id="balanceFill" class="balance-fill"></div>
+          </div>
+          <p id="balanceAdvice" class="balance-advice">投放生命后开始时间，观察它们如何彼此影响。</p>
+        </section>
+
+        <section class="chronicle-section">
+          <div class="section-heading compact">
+            <span class="section-icon" aria-hidden="true">☰</span>
+            <div>
+              <p class="eyebrow">世界纪事</p>
+              <h2>最近发生</h2>
+            </div>
+          </div>
+          <ol id="eventLog" class="event-log" aria-live="polite"></ol>
+        </section>
+      </aside>
+    </main>
+
+    <footer class="footer-note">
+      <span>阶段0 · 生态原型</span>
+      <p>这一版只验证“观察世界是否有趣”，不会提前加入文明、宗教和科技。</p>
+    </footer>
+  </div>
+</body>
+</html>
