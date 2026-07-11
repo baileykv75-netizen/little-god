@@ -15,14 +15,18 @@
     const cellCount = vegetation?.cellCount
       ?? ((grid.columns || 0) * (grid.rows || 0));
     const averageFertility = cellCount > 0 ? totals.fertility / cellCount : 0;
+    const cellWidth = grid.cellWidth ?? 0;
+    const cellHeight = grid.cellHeight ?? 0;
+    const cellSize = cellWidth === cellHeight ? cellWidth : null;
 
     const result = {
       version: "terrain-grid-diagnostics-v1",
       columns: vegetation?.columns ?? grid.columns ?? 0,
       rows: vegetation?.rows ?? grid.rows ?? 0,
       cellCount,
-      cellWidth: grid.cellWidth ?? 0,
-      cellHeight: grid.cellHeight ?? 0,
+      cellWidth,
+      cellHeight,
+      cellSize,
       vegetatedCoverage: vegetation?.vegetatedCoverage ?? 0,
       rootCoverage: vegetation?.rootCoverage ?? 0,
       bareCoverage: vegetation?.bareCoverage ?? 1,
@@ -43,6 +47,7 @@
       cellCount: result.cellCount,
       cellWidth: result.cellWidth,
       cellHeight: result.cellHeight,
+      cellSize: result.cellSize,
     };
     result.coverage = {
       vegetated: result.vegetatedCoverage,
