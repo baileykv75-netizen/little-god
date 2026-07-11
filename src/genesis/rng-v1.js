@@ -82,6 +82,16 @@
   // random source here makes genetics, movement and hunting part of one replayable experiment.
   Math.random = nextRandom;
 
+  LG.getExperimentReplayUrl = () => {
+    try {
+      const url = new URL(window.location?.href || "http://localhost/");
+      url.searchParams.set("seed", seed);
+      return url.toString();
+    } catch {
+      return `?seed=${encodeURIComponent(seed)}`;
+    }
+  };
+
   LG.setExperimentSeed = (value, options = {}) => {
     seed = normalizeSeed(value);
     seedSource = "api";
