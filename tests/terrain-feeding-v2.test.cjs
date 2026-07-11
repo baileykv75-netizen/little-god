@@ -13,9 +13,11 @@ for (let row = 0; row < GRID.rows; row += 1) {
       gridRow: row,
       x: (column + 0.5) * GRID.cellWidth,
       y: (row + 0.5) * GRID.cellHeight,
+      radius: 64,
       green: 0,
       dry: 0,
       rootBiomass: 0,
+      fertility: 0.8,
       lastDisturbedYear: -Infinity,
     });
   }
@@ -102,6 +104,13 @@ const LittleGod = {
     eventFlags: {},
   },
   initializeVegetationGrid() { return this.state.terrainCells; },
+  createPatch() {},
+  seedPatchAt() {},
+  findPatchNear() { return null; },
+  getResourceTotals() { return { green: 0, dry: 0, seeds: 0, roots: 0, fertility: 0 }; },
+  hasDormantPlantLife() { return true; },
+  updateVegetationGrid() {},
+  getVegetationDiagnostics() { return { columns: 64, rows: 40, cellCount: 2560, hotspots: [] }; },
   distanceSquared(a, b) { return (a.x - b.x) ** 2 + (a.y - b.y) ** 2; },
   turnToward(current) { return current; },
   clamp(value, min, max) { return Math.max(min, Math.min(max, value)); },
@@ -119,9 +128,18 @@ for (const file of ["src/genesis/terrain-store-v2.js", "src/genesis/simulation.j
   vm.runInContext(fs.readFileSync(file, "utf8"), context, { filename: file });
 }
 
+assert.equal(LittleGod.terrainStoreModel.version, "terrain-store-v3");
 assert.equal(LittleGod.terrainStoreModel.legacyPatchCollectionFeedsAnimals, false);
+assert.equal(LittleGod.terrainStoreModel.canonicalCellsHaveCircularRadius, false);
 assert.equal(LittleGod.terrainStoreModel.source, "state.terrainCells");
 assert.equal(LittleGod.terrainFeedingModel.nativeGridFeeding, true);
+assert.equal(Object.prototype.hasOwnProperty.call(feedingCell, "radius"), false,
+  "Canonical terrain cells must not expose a circular patch radius");
+assert.equal(LittleGod.state.patches[0].isTerrainRenderCell, true,
+  "Renderer should receive non-feeding terrain views");
+assert.equal(LittleGod.state.patches[0].drivesFeeding, false);
+assert.equal(typeof LittleGod.state.patches[0].radius, "number",
+  "Circular size is allowed only on the renderer view");
 assert.equal(LittleGod.getVegetationCellsInRadius(grazer.x, grazer.y, 40).includes(legacyCircularPatch), false);
 
 LittleGod.updateGrazers(0.1);
