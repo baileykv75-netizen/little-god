@@ -14,12 +14,13 @@
   <script src="src/genesis/core.js?v=20260711-13" defer></script>
   <script src="src/genesis/world-v2.js?v=20260711-13" defer></script>
   <script src="src/genesis/terrain-store-v2.js?v=20260711-13" defer></script>
-  <script src="src/genesis/rng-v1.js?v=20260711-14" defer></script>
+  <script src="src/genesis/rng-v1.js?v=20260711-15" defer></script>
   <script src="src/genesis/terrain-diagnostics-contract.js?v=20260711-13" defer></script>
   <script src="src/genesis/attributes.js?v=20260711-13" defer></script>
   <script src="src/genesis/simulation.js?v=20260711-13" defer></script>
   <script src="src/genesis/view-v2.js?v=20260711-13" defer></script>
   <script src="src/genesis/terrain-renderer-v2.js?v=20260711-13" defer></script>
+  <script src="src/genesis/experiment-telemetry-v1.js?v=20260711-15" defer></script>
   <script src="src/genesis/diagnostics.js?v=20260711-13" defer></script>
 </head>
 <body>
@@ -201,12 +202,12 @@
     </main>
 
     <footer class="footer-note">
-      <span>Genesis v0.2 · 检查点2：连续生态地表渲染</span>
-      <p>64×40植物网格通过双线性采样和空间噪声绘制为连续地表；圆形草地仅保留在旧渲染代码中且不会出现在最终画面。</p>
+      <span>Genesis v0.2 · 检查点2：确定性实验诊断</span>
+      <p>同一实验种子可复现初始世界和后续随机事件；诊断导出包含种子、随机抽样计数与复现实验链接。</p>
     </footer>
   </div>
 
-  <span class="build-version">v0.4.7 · continuous terrain renderer</span>
+  <span class="build-version">v0.4.8 · deterministic experiments</span>
   <button id="exportDiagnosticsButton" class="diagnostics-fab" type="button" title="下载本局生态、遗传属性、相机状态、捕猎和报错记录">导出本局诊断</button>
 </body>
 </html>
