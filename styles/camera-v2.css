@@ -1,0 +1,87 @@
+.camera-controls {
+  position: absolute;
+  z-index: 6;
+  right: 14px;
+  bottom: 14px;
+  display: flex;
+  align-items: center;
+  gap: 5px;
+  padding: 5px;
+  border: 1px solid rgba(255, 255, 255, 0.46);
+  border-radius: 14px;
+  color: #fff;
+  background: rgba(34, 56, 53, 0.66);
+  box-shadow: 0 10px 24px rgba(26, 48, 44, 0.16);
+  backdrop-filter: blur(12px);
+}
+
+.camera-controls button {
+  display: grid;
+  min-width: 31px;
+  height: 31px;
+  padding: 0 8px;
+  place-items: center;
+  border-radius: 9px;
+  color: #fff;
+  background: rgba(255, 255, 255, 0.12);
+  font-size: 0.83rem;
+  font-weight: 800;
+}
+
+.camera-controls button:hover {
+  background: rgba(255, 255, 255, 0.22);
+}
+
+.camera-controls .camera-fit {
+  min-width: 46px;
+  font-size: 0.7rem;
+}
+
+#cameraZoomLabel {
+  min-width: 42px;
+  color: #fff1b7;
+  font-size: 0.68rem;
+  font-variant-numeric: tabular-nums;
+  text-align: center;
+}
+
+.world-frame.is-panning #worldCanvas {
+  cursor: grabbing;
+}
+
+#worldCanvas {
+  cursor: crosshair;
+}
+
+.genesis-selection-marker {
+  display: none !important;
+}
+
+.genesis-inspect-button[hidden] {
+  display: none !important;
+}
+
+.camera-help {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  color: var(--muted);
+  font-size: 0.7rem;
+}
+
+.camera-help kbd {
+  padding: 2px 5px;
+  border: 1px solid rgba(68, 83, 82, 0.16);
+  border-bottom-width: 2px;
+  border-radius: 5px;
+  background: rgba(255, 255, 255, 0.68);
+  font: inherit;
+  font-weight: 800;
+}
+
+@media (max-width: 900px) {
+  .camera-controls {
+    right: 10px;
+    bottom: 10px;
+  }
+}
