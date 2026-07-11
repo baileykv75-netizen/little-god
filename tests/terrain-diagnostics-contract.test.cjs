@@ -9,6 +9,13 @@ const LittleGod = {
     cellWidth: 32,
     cellHeight: 32,
   },
+  terrainStoreModel: {
+    legacyPatchCollectionFeedsAnimals: false,
+  },
+  terrainFeedingModel: {
+    nativeGridFeeding: true,
+    legacyCircularFeeding: false,
+  },
   getVegetationDiagnostics() {
     return {
       columns: 64,
@@ -80,10 +87,16 @@ assert.equal(diagnostics.grazingHotspots[0].row, 8);
 assert.equal(diagnostics.grazingHotspots[0].pressure, 2.4);
 assert.notStrictEqual(diagnostics.grazingHotspots, LittleGod.getVegetationDiagnostics().hotspots);
 assert.equal(diagnostics.resourceBudget.grazingRemoved, 5);
+assert.equal(diagnostics.usesLegacyPatchFood, false,
+  "Legacy circular patches still drive animal feeding");
 
 for (const key of ["green", "root", "roots", "bare", "barren"]) {
   assert.equal(typeof diagnostics.coverage[key], "number");
   assert.ok(diagnostics.coverage[key] >= 0 && diagnostics.coverage[key] <= 1);
 }
+
+LittleGod.terrainFeedingModel.legacyCircularFeeding = true;
+assert.equal(LittleGod.getTerrainDiagnostics().usesLegacyPatchFood, true,
+  "Diagnostics must report legacy feeding when the runtime model enables it");
 
 console.log("terrain-diagnostics-contract.test: PASS");
