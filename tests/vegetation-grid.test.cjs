@@ -50,11 +50,16 @@ const context = {
 };
 
 vm.createContext(context);
-vm.runInContext(
-  fs.readFileSync("src/genesis/world-v2.js", "utf8"),
-  context,
-  { filename: "src/genesis/world-v2.js" },
-);
+for (const scriptPath of [
+  "src/genesis/world-v2.js",
+  "src/genesis/terrain-diagnostics-contract.js",
+]) {
+  vm.runInContext(
+    fs.readFileSync(scriptPath, "utf8"),
+    context,
+    { filename: scriptPath },
+  );
+}
 
 LG.seedWorld();
 assert.equal(LG.GRID.columns, 64);
@@ -96,5 +101,23 @@ assert.equal(snapshot.vegetationGrid.columns, 64);
 assert.equal(snapshot.vegetationGrid.rows, 40);
 assert.equal(snapshot.vegetationGrid.cellCount, 2560);
 assert.ok(Array.isArray(snapshot.vegetationGrid.hotspots));
+
+assert.equal(
+  typeof LG.getTerrainDiagnostics,
+  "function",
+  "Checkpoint 2 contract missing: expose LittleGod.getTerrainDiagnostics() for automated acceptance",
+);
+const terrain = LG.getTerrainDiagnostics();
+assert.equal(terrain.columns, 64);
+assert.equal(terrain.rows, 40);
+assert.equal(terrain.cellCount, 2560);
+assert.equal(terrain.grid.columns, 64);
+assert.equal(terrain.grid.rows, 40);
+assert.ok(Number.isFinite(terrain.coverage.vegetated));
+assert.ok(Number.isFinite(terrain.coverage.rooted));
+assert.ok(Number.isFinite(terrain.coverage.bare));
+assert.ok(Number.isFinite(terrain.resources.greenBiomass));
+assert.ok(Number.isFinite(terrain.resources.rootBiomass));
+assert.ok(Array.isArray(terrain.hotspots));
 
 console.log("vegetation-grid.test: PASS");
