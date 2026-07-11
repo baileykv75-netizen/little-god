@@ -2,7 +2,7 @@ const fs = require("fs");
 const vm = require("vm");
 const assert = require("assert");
 
-const cell = {
+const gridCell = {
   isGridCell: true,
   x: 100,
   y: 100,
@@ -11,6 +11,15 @@ const cell = {
   dry: 0,
   rootBiomass: 4,
   lastDisturbedYear: -Infinity,
+};
+const legacyCircularPatch = {
+  isGridCell: false,
+  x: 100,
+  y: 100,
+  radius: 120,
+  green: 50,
+  dry: 0,
+  rootBiomass: 20,
 };
 const grazer = {
   x: 100,
@@ -22,7 +31,7 @@ const grazer = {
 
 const LittleGod = {
   state: {
-    patches: [cell],
+    patches: [legacyCircularPatch, gridCell],
     grazers: [grazer],
     hunters: [],
     year: 2,
@@ -36,11 +45,13 @@ const LittleGod = {
       threatRadius: 40,
     },
   },
-  updateGrazers(dt) {
-    const legacyPatch = this.state.patches[0];
-    const reach = legacyPatch.radius * 0.72 + 9;
-    if ((legacyPatch.x - grazer.x) ** 2 + (legacyPatch.y - grazer.y) ** 2 < reach * reach) {
-      legacyPatch.green -= 5;
+  updateGrazers() {
+    for (const legacyPatch of this.state.patches) {
+      const reach = legacyPatch.radius * 0.72 + 9;
+      if ((legacyPatch.x - grazer.x) ** 2 + (legacyPatch.y - grazer.y) ** 2 < reach * reach) {
+        legacyPatch.green -= 5;
+        break;
+      }
     }
   },
   getVegetationCellsInRadius() {
@@ -71,15 +82,20 @@ vm.runInContext(
 );
 
 assert.equal(LittleGod.terrainFeedingModel.legacyCircularFeeding, false);
+assert.equal(LittleGod.terrainFeedingModel.version, "grid-local-v2");
 assert.equal(typeof LittleGod.consumeTerrainFoodAt, "function");
 assert.equal(typeof LittleGod.getTerrainFeedingCell, "function");
 
 LittleGod.updateGrazers(0.1);
 
-assert.equal(cell.green, 9, "Only grid-local consumption should reduce the cell by eatRate * dt");
+assert.equal(legacyCircularPatch.green, 50,
+  "Legacy circular patches must not be visible to or consumed by the grazer loop");
+assert.equal(gridCell.green, 9,
+  "Only the local grid cell should be consumed by eatRate * dt");
 assert.equal(grazer.energy, 11);
 assert.equal(grazer.lastMealAge, 0);
 assert.equal(LittleGod.metrics.greenConsumed, 1);
-assert.equal(LittleGod.state.patches[0], cell, "The real terrain grid must be restored after the legacy loop");
+assert.deepEqual(LittleGod.state.patches, [legacyCircularPatch, gridCell],
+  "The real terrain collection must be restored after the established loop");
 
 console.log("terrain-feeding-v2.test: PASS");
