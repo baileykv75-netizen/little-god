@@ -59,6 +59,15 @@
       && cells.every((cell) => cell?.isGridCell === true);
   }
 
+  function normalizeCanonicalCell(cell) {
+    // Circular radius belongs to the renderer only. Feeding, seasons and
+    // diagnostics operate on rectangular grid cells with no patch radius.
+    if (Object.prototype.hasOwnProperty.call(cell, "radius")) delete cell.radius;
+    cell.terrainModel = "grid-cell";
+    cell.drivesFeeding = true;
+    return cell;
+  }
+
   function createRenderView(cell) {
     const view = {
       id: `terrain-view-${cell.id}`,
@@ -92,9 +101,9 @@
     if (!isCompleteGrid(cells)) {
       throw new Error(`Terrain grid must contain ${cellCount} canonical cells`);
     }
-    state.terrainCells = cells;
+    state.terrainCells = cells.map(normalizeCanonicalCell);
     suppressExternalClear = true;
-    renderViews = cells.map(createRenderView);
+    renderViews = state.terrainCells.map(createRenderView);
     suppressExternalClear = false;
     return state.terrainCells;
   }
@@ -133,7 +142,12 @@
     for (let row = minRow; row <= maxRow; row += 1) {
       for (let column = minColumn; column <= maxColumn; column += 1) {
         const cell = cells[row * GRID.columns + column];
-        if ((cell.x - x) ** 2 + (cell.y - y) ** 2 <= radiusSquared) nearby.push(cell);
+        if (
+          cell?.isGridCell === true
+          && cell.terrainModel === "grid-cell"
+          && !Object.prototype.hasOwnProperty.call(cell, "radius")
+          && (cell.x - x) ** 2 + (cell.y - y) ** 2 <= radiusSquared
+        ) nearby.push(cell);
       }
     }
     return nearby;
@@ -155,12 +169,14 @@
     set() {},
   });
 
-  if (isCompleteGrid(initialPatchCollection)) publishTerrain(initialPatchCollection);
+  if (isCompleteGrid(state.terrainCells)) publishTerrain(state.terrainCells);
+  else if (isCompleteGrid(initialPatchCollection)) publishTerrain(initialPatchCollection);
 
   LG.terrainStoreModel = Object.freeze({
-    version: "terrain-store-v2",
+    version: "terrain-store-v3",
     source: "state.terrainCells",
     renderSource: "state.patches-render-views",
+    canonicalCellsHaveCircularRadius: false,
     sharedCellIdentityWithLegacyPatches: false,
     legacyPatchCollectionFeedsAnimals: false,
     columns: GRID.columns,
