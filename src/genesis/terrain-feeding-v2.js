@@ -91,7 +91,7 @@
   LG.updateGrazers = (dt) => {
     // Preserve movement, lifecycle and reproduction from the established loop,
     // while preventing its legacy radius-based patch consumption from firing.
-    withLegacyFeedingDisabled(() => originalUpdateGrazers(dt));
+    withLegacyFeedingDisabled(() => originalUpdateGrazers.call(LG, dt));
 
     for (const grazer of state.grazers) {
       const threatRadius = grazer.derived?.threatRadius || SPECIES.grazer.threatRadius;
