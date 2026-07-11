@@ -9,7 +9,49 @@
 
   const { state, GRID, WORLD } = LG;
   const cellCount = GRID.columns * GRID.rows;
-  const originalInitializeVegetationGrid = LG.initializeVegetationGrid;
+  const initialPatchCollection = Array.isArray(state.patches) ? state.patches : [];
+  let renderViews = initialPatchCollection;
+  let terrainModeDepth = 0;
+  let suppressExternalClear = false;
+
+  const original = {
+    initializeVegetationGrid: LG.initializeVegetationGrid,
+    createPatch: LG.createPatch,
+    seedPatchAt: LG.seedPatchAt,
+    findPatchNear: LG.findPatchNear,
+    getResourceTotals: LG.getResourceTotals,
+    hasDormantPlantLife: LG.hasDormantPlantLife,
+    updateVegetationGrid: LG.updateVegetationGrid,
+    getVegetationDiagnostics: LG.getVegetationDiagnostics,
+  };
+
+  state.terrainCells = Array.isArray(state.terrainCells) ? state.terrainCells : [];
+
+  Object.defineProperty(state, "patches", {
+    configurable: true,
+    enumerable: true,
+    get() {
+      return terrainModeDepth > 0 ? state.terrainCells : renderViews;
+    },
+    set(value) {
+      const next = Array.isArray(value) ? value : [];
+      if (terrainModeDepth > 0) {
+        state.terrainCells = next;
+        return;
+      }
+      renderViews = next;
+      if (!suppressExternalClear && next.length === 0) state.terrainCells = [];
+    },
+  });
+
+  function withTerrainCells(callback) {
+    terrainModeDepth += 1;
+    try {
+      return callback();
+    } finally {
+      terrainModeDepth -= 1;
+    }
+  }
 
   function isCompleteGrid(cells) {
     return Array.isArray(cells)
@@ -17,23 +59,53 @@
       && cells.every((cell) => cell?.isGridCell === true);
   }
 
-  function publishTerrain(cells) {
-    const terrainCells = cells.filter((cell) => cell?.isGridCell === true);
-    if (terrainCells.length !== cellCount) {
-      throw new Error(`Terrain grid must contain ${cellCount} cells`);
+  function createRenderView(cell) {
+    const view = {
+      id: `terrain-view-${cell.id}`,
+      type: "terrain-view",
+      isGridCell: false,
+      isTerrainRenderCell: true,
+      drivesFeeding: false,
+      terrainCellId: cell.id,
+      radius: Math.max(GRID.cellWidth, GRID.cellHeight) * 0.72,
+    };
+
+    for (const key of [
+      "x", "y", "green", "dry", "seeds", "rootBiomass", "fertility",
+      "moisture", "grazingPressure", "phase", "barrenAge", "gridColumn", "gridRow",
+    ]) {
+      Object.defineProperty(view, key, {
+        enumerable: true,
+        configurable: false,
+        get() { return cell[key]; },
+        set(value) {
+          // Render views never own food. Only non-food compatibility writes such
+          // as carcass fertility enrichment are forwarded to the terrain cell.
+          if (key === "fertility") cell.fertility = value;
+        },
+      });
     }
-    state.terrainCells = terrainCells.slice();
+    return view;
+  }
+
+  function publishTerrain(cells) {
+    if (!isCompleteGrid(cells)) {
+      throw new Error(`Terrain grid must contain ${cellCount} canonical cells`);
+    }
+    state.terrainCells = cells;
+    suppressExternalClear = true;
+    renderViews = cells.map(createRenderView);
+    suppressExternalClear = false;
     return state.terrainCells;
   }
 
   LG.initializeVegetationGrid = (options = {}) => {
-    const cells = originalInitializeVegetationGrid(options);
+    const cells = withTerrainCells(() => original.initializeVegetationGrid(options));
     return publishTerrain(cells);
   };
 
   LG.getTerrainCells = () => {
     if (isCompleteGrid(state.terrainCells)) return state.terrainCells;
-    if (isCompleteGrid(state.patches)) return publishTerrain(state.patches);
     return LG.initializeVegetationGrid();
   };
 
@@ -67,9 +139,29 @@
     return nearby;
   };
 
+  LG.createPatch = (...args) => withTerrainCells(() => original.createPatch(...args));
+  LG.seedPatchAt = (...args) => withTerrainCells(() => original.seedPatchAt(...args));
+  LG.findPatchNear = (...args) => withTerrainCells(() => original.findPatchNear(...args));
+  LG.getResourceTotals = () => withTerrainCells(() => original.getResourceTotals());
+  LG.hasDormantPlantLife = () => withTerrainCells(() => original.hasDormantPlantLife());
+  LG.getVegetationDiagnostics = () => withTerrainCells(() => original.getVegetationDiagnostics());
+
+  const updateTerrain = (dt) => withTerrainCells(() => original.updateVegetationGrid(dt));
+  LG.updateVegetationGrid = updateTerrain;
+  Object.defineProperty(LG, "updatePatches", {
+    configurable: true,
+    enumerable: true,
+    get() { return updateTerrain; },
+    set() {},
+  });
+
+  if (isCompleteGrid(initialPatchCollection)) publishTerrain(initialPatchCollection);
+
   LG.terrainStoreModel = Object.freeze({
-    version: "terrain-store-v1",
+    version: "terrain-store-v2",
     source: "state.terrainCells",
+    renderSource: "state.patches-render-views",
+    sharedCellIdentityWithLegacyPatches: false,
     legacyPatchCollectionFeedsAnimals: false,
     columns: GRID.columns,
     rows: GRID.rows,
