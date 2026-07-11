@@ -1,0 +1,54 @@
+.diagnostics-fab {
+  position: fixed;
+  right: 24px;
+  bottom: 24px;
+  z-index: 1000;
+  min-height: 46px;
+  padding: 0 18px;
+  border: 1px solid rgba(45, 91, 77, 0.22);
+  border-radius: 14px;
+  color: #fff;
+  background: linear-gradient(135deg, #4c9770, #397c69);
+  box-shadow: 0 12px 28px rgba(38, 85, 70, 0.3);
+  font-weight: 800;
+}
+
+.diagnostics-fab::before {
+  content: "⇩";
+  margin-right: 8px;
+  font-weight: 900;
+}
+
+.diagnostics-fab:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 15px 34px rgba(38, 85, 70, 0.36);
+}
+
+.build-version {
+  position: fixed;
+  right: 28px;
+  bottom: 77px;
+  z-index: 999;
+  padding: 5px 9px;
+  border-radius: 999px;
+  color: #48635b;
+  background: rgba(255, 253, 247, 0.9);
+  box-shadow: 0 5px 15px rgba(49, 73, 66, 0.14);
+  font-size: 11px;
+  font-weight: 800;
+  letter-spacing: 0.04em;
+}
+
+@media (max-width: 720px) {
+  .diagnostics-fab {
+    right: 12px;
+    bottom: 12px;
+    min-height: 42px;
+    padding: 0 14px;
+  }
+
+  .build-version {
+    right: 14px;
+    bottom: 63px;
+  }
+}
