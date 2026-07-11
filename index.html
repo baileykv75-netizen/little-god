@@ -5,9 +5,10 @@
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <meta name="description" content="Little God：投放物种、设定世界法则并观察生态兴衰的创世实验。">
   <title>Little God · 创世实验</title>
-  <link rel="stylesheet" href="styles/main.css">
-  <script src="src/main.js" defer></script>
-  <script src="src/diagnostics.js" defer></script>
+  <link rel="stylesheet" href="styles/main.css?v=20260711-1">
+  <link rel="stylesheet" href="styles/diagnostics.css?v=20260711-1">
+  <script src="src/main.js?v=20260711-1" defer></script>
+  <script src="src/diagnostics.js?v=20260711-1" defer></script>
 </head>
 <body>
   <div class="app-shell">
@@ -31,7 +32,6 @@
           <button class="speed-button" type="button" data-speed="12">12×</button>
         </div>
         <button id="resetButton" class="ghost-button" type="button">重置世界</button>
-        <button id="exportDiagnosticsButton" class="ghost-button" type="button" title="下载本局操作、物种数量变化、世界事件和报错记录">导出本局诊断</button>
       </div>
     </header>
 
@@ -217,5 +217,8 @@
       <p>这一版只验证“观察世界是否有趣”，不会提前加入文明、宗教和科技。</p>
     </footer>
   </div>
+
+  <span class="build-version">v0.1.1 · diagnostics</span>
+  <button id="exportDiagnosticsButton" class="diagnostics-fab" type="button" title="下载本局操作、物种数量变化、世界事件和报错记录">导出本局诊断</button>
 </body>
 </html>
