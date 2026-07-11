@@ -17,9 +17,11 @@ jobs:
           node --check src/genesis/terrain-store-v2.js
           node --check src/genesis/simulation.js
           node --check src/genesis/terrain-diagnostics-contract.js
+          node --check src/genesis/terrain-renderer-v2.js
       - name: Checkpoint regression tests
         run: |
           node tests/static-assets.test.cjs
           node tests/vegetation-grid.test.cjs
           node tests/terrain-diagnostics-contract.test.cjs
           node tests/terrain-feeding-v2.test.cjs
+          node tests/terrain-renderer.test.cjs
