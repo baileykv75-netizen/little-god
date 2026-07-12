@@ -167,7 +167,7 @@ assert.ok(state.lifetime.germinatedBiomass > 0,
   "Continuous-grid germination must feed the public germinatedBiomass metric");
 assert.ok(state.lifetime.seedDispersals > 0,
   "Continuous-grid seed production must feed the public seedDispersals metric");
-LittleGod.updateWorld(0.1);
+LittleGod.updateWorld(0.8);
 
 const compact = LittleGod.getEcologySupervisionDiagnostics();
 assert.equal(compact.meta.version, "ecology-supervision-v1");
