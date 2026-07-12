@@ -13,6 +13,7 @@
   <link rel="stylesheet" href="styles/diagnostics.css?v=20260711-13">
   <link rel="stylesheet" href="styles/experiment-controls.css?v=20260712-1">
   <link rel="stylesheet" href="styles/bloodline-observer.css?v=20260712-1">
+  <link rel="stylesheet" href="styles/group-observer.css?v=20260712-1">
   <script src="src/genesis/core.js?v=20260711-13" defer></script>
   <script src="src/genesis/world-v2.js?v=20260711-13" defer></script>
   <script src="src/genesis/terrain-store-v2.js?v=20260711-13" defer></script>
@@ -26,6 +27,7 @@
   <script src="src/genesis/active-traits-v1.js?v=20260712-2" defer></script>
   <script src="src/genesis/group-behavior-v1.js?v=20260712-1" defer></script>
   <script src="src/genesis/view-v2.js?v=20260711-13" defer></script>
+  <script src="src/genesis/group-observer-v1.js?v=20260712-1" defer></script>
   <script src="src/genesis/terrain-renderer-v2.js?v=20260711-13" defer></script>
   <script src="src/genesis/experiment-telemetry-v1.js?v=20260711-15" defer></script>
   <script src="src/genesis/diagnostics.js?v=20260711-13" defer></script>
@@ -227,12 +229,12 @@
     </main>
 
     <footer class="footer-note">
-      <span>Genesis v0.4 · 群体行为：兽群与猎群</span>
-      <p>高社会性食草兽会形成兽群共享警戒与防御；高社会性猎食兽会形成猎群共享感知与协同战力。</p>
+      <span>Genesis v0.4 · 可观察的兽群与猎群</span>
+      <p>相机控制栏可切换群体边界：橙色显示兽群，紫色显示猎群，并随缩放和移动实时更新。</p>
     </footer>
   </div>
 
-  <span class="build-version">v0.5.4 · social herds and packs</span>
+  <span class="build-version">v0.5.5 · observable social groups</span>
   <button id="exportDiagnosticsButton" class="diagnostics-fab" type="button" title="下载本局生态、遗传属性、相机状态、捕猎和报错记录">导出本局诊断</button>
 </body>
 </html>
