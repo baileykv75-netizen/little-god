@@ -1,0 +1,107 @@
+.genesis-bloodline-card {
+  display: grid;
+  gap: 8px;
+  margin-top: 9px;
+  padding: 9px;
+  border: 1px solid rgba(92, 76, 148, 0.2);
+  border-radius: 12px;
+  background: linear-gradient(145deg, rgba(244, 241, 255, 0.88), rgba(235, 246, 250, 0.78));
+  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.72);
+}
+
+.genesis-bloodline-card.is-awakened,
+.genesis-bloodline-card.is-exalted {
+  border-color: rgba(112, 91, 177, 0.42);
+  background: linear-gradient(145deg, rgba(239, 232, 255, 0.96), rgba(224, 244, 249, 0.9));
+}
+
+.genesis-bloodline-card.is-exalted {
+  box-shadow: 0 0 18px rgba(132, 104, 190, 0.18), inset 0 1px 0 rgba(255, 255, 255, 0.78);
+}
+
+.genesis-bloodline-head {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 8px;
+}
+
+.genesis-bloodline-head > div {
+  display: grid;
+  gap: 2px;
+}
+
+.genesis-bloodline-head strong {
+  color: #4d4273;
+  font-size: 0.74rem;
+}
+
+.genesis-bloodline-head small {
+  color: var(--muted);
+  font-size: 0.61rem;
+}
+
+.genesis-bloodline-status {
+  flex: 0 0 auto;
+  padding: 4px 7px;
+  border-radius: 999px;
+  color: #fff;
+  background: #7f7894;
+  font-size: 0.61rem;
+  font-weight: 800;
+}
+
+.is-carrier .genesis-bloodline-status {
+  background: #6d8092;
+}
+
+.is-awakened .genesis-bloodline-status {
+  background: linear-gradient(135deg, #6e61a7, #497f91);
+}
+
+.is-exalted .genesis-bloodline-status {
+  background: linear-gradient(135deg, #8a5cb0, #3b8994);
+  box-shadow: 0 0 10px rgba(118, 85, 170, 0.28);
+}
+
+.genesis-bloodline-metrics {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 5px;
+}
+
+.genesis-bloodline-metrics span {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 6px;
+  min-width: 0;
+  padding: 5px 6px;
+  border-radius: 8px;
+  background: rgba(255, 255, 255, 0.58);
+}
+
+.genesis-bloodline-metrics small {
+  color: var(--muted);
+  font-size: 0.59rem;
+}
+
+.genesis-bloodline-metrics strong {
+  color: #4d4273;
+  font-size: 0.62rem;
+  font-variant-numeric: tabular-nums;
+  white-space: nowrap;
+}
+
+.genesis-bloodline-note {
+  margin: 0;
+  color: var(--muted);
+  font-size: 0.61rem;
+  line-height: 1.45;
+}
+
+@media (max-width: 760px) {
+  .genesis-bloodline-metrics {
+    grid-template-columns: 1fr;
+  }
+}
