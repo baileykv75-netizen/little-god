@@ -185,6 +185,9 @@
   function buildReport(playerNotes) {
     recordSample(true);
     const finalSnapshot = snapshot();
+    const compactSummary = finalSnapshot.compactSummary
+      || window.LittleGod?.getEcologySupervisionDiagnostics?.()
+      || null;
     return {
       reportVersion: session.reportVersion,
       sessionId: session.sessionId,
@@ -224,6 +227,7 @@
         recordedErrors: session.errors.length,
         recordedWorldEvents: session.worldEvents.length,
       },
+      compactSummary,
       finalSnapshot,
       actions: session.actions,
       worldEvents: session.worldEvents,
@@ -301,6 +305,12 @@
     message: event.reason?.message || String(event.reason),
     stack: event.reason?.stack || null,
   }));
+
+  window.LittleGodDiagnostics = Object.freeze({
+    buildReport,
+    snapshot,
+    recordSample,
+  });
 
   bindActions();
   recordSample(true);
