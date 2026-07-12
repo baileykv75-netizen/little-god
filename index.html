@@ -34,7 +34,7 @@
   <script src="src/genesis/group-observer-v1.js?v=20260712-1" defer></script>
   <script src="src/genesis/terrain-renderer-v2.js?v=20260711-13" defer></script>
   <script src="src/genesis/experiment-telemetry-v1.js?v=20260711-15" defer></script>
-  <script src="src/genesis/diagnostics.js?v=20260712-2" defer></script>
+  <script src="src/genesis/diagnostics.js?v=20260712-3" defer></script>
 </head>
 <body>
   <div class="app-shell">
@@ -233,12 +233,12 @@
     </main>
 
     <footer class="footer-note">
-      <span>Genesis v0.5 · 生态稳定性修复</span>
-      <p>猎食兽繁殖不再受数量硬封锁；春季恢复按整季累计判定，诊断导出新增监督精简摘要。</p>
+      <span>Genesis v0.5 · 连续植被预算诊断</span>
+      <p>种子发芽与秋季结籽现在按连续网格预算逐帧桥接到公开指标，并在精简监督诊断中单独列出。</p>
     </footer>
   </div>
 
-  <span class="build-version">v0.6.2 · ecology stability diagnostics</span>
+  <span class="build-version">v0.6.3 · continuous plant flow diagnostics</span>
   <button id="exportDiagnosticsButton" class="diagnostics-fab" type="button" title="下载本局生态、遗传属性、相机状态、捕猎和报错记录">导出本局诊断</button>
 </body>
 </html>
