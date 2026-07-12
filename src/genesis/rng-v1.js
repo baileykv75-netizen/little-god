@@ -42,6 +42,18 @@
   let state = seedHash;
   let draws = 0;
 
+  function buildLabelElement() {
+    return typeof document === "undefined" ? null : document.querySelector(".build-version");
+  }
+
+  function runtimeBuildVersion() {
+    const label = buildLabelElement();
+    const declared = label?.dataset?.build?.trim();
+    if (declared) return declared;
+    const visible = label?.textContent?.trim().match(/^v[\w.-]+/)?.[0];
+    return visible || "build-unknown";
+  }
+
   function syncState() {
     if (!LG.state) return;
     LG.state.experimentSeed = seed;
@@ -50,12 +62,13 @@
   }
 
   function renderSeedLabel() {
-    if (typeof document === "undefined") return;
-    const label = document.querySelector(".build-version");
+    const label = buildLabelElement();
     if (!label) return;
+    const build = runtimeBuildVersion();
     const compactSeed = seed.length > 18 ? `${seed.slice(0, 15)}…` : seed;
-    label.textContent = `v0.4.9 · seed ${compactSeed}`;
-    label.title = `实验种子：${seed}。使用 ?seed=${encodeURIComponent(seed)} 可复现实验。`;
+    label.dataset.build = build;
+    label.textContent = `${build} · seed ${compactSeed}`;
+    label.title = `构建：${build}。实验种子：${seed}。使用 ?seed=${encodeURIComponent(seed)} 可复现实验。`;
   }
 
   function syncSeedControls(message = "") {
@@ -117,11 +130,18 @@
 
   LG.getExperimentDiagnostics = () => ({
     algorithm,
+    build: runtimeBuildVersion(),
     seed,
     seedHash,
     draws,
     deterministic: true,
     source: seedSource,
+  });
+
+  LG.getRuntimeBuildDiagnostics = () => ({
+    version: runtimeBuildVersion(),
+    seed,
+    label: buildLabelElement()?.textContent?.trim() || null,
   });
 
   const seedWorld = LG.seedWorld;
@@ -178,6 +198,7 @@
     version: "experiment-controls-v1",
     resetsWorldOnApply: true,
     copiesReplayUrl: true,
+    preservesBuildProvenance: true,
   });
 
   rewind();
