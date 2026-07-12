@@ -19,6 +19,7 @@ jobs:
           node --check src/genesis/experiment-telemetry-v1.js
           node --check src/genesis/simulation.js
           node --check src/genesis/active-traits-v1.js
+          node --check src/genesis/group-behavior-v1.js
           node --check src/genesis/kinship-v1.js
           node --check src/genesis/arcane-bloodline-v1.js
           node --check src/genesis/bloodline-observer-v1.js
@@ -35,6 +36,7 @@ jobs:
           node tests/experiment-telemetry.test.cjs
           node tests/experiment-seed-controls.test.cjs
           node tests/active-traits.test.cjs
+          node tests/group-behavior.test.cjs
           node tests/kinship.test.cjs
           node tests/arcane-bloodline.test.cjs
           node tests/bloodline-observer.test.cjs
