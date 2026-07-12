@@ -54,8 +54,16 @@
     const label = document.querySelector(".build-version");
     if (!label) return;
     const compactSeed = seed.length > 18 ? `${seed.slice(0, 15)}…` : seed;
-    label.textContent = `v0.4.8 · seed ${compactSeed}`;
+    label.textContent = `v0.4.9 · seed ${compactSeed}`;
     label.title = `实验种子：${seed}。使用 ?seed=${encodeURIComponent(seed)} 可复现实验。`;
+  }
+
+  function syncSeedControls(message = "") {
+    if (typeof document === "undefined") return;
+    const input = document.querySelector("#experimentSeedInput");
+    const status = document.querySelector("#experimentSeedStatus");
+    if (input && input.value !== seed) input.value = seed;
+    if (status && message) status.textContent = message;
   }
 
   function rewind() {
@@ -94,9 +102,10 @@
 
   LG.setExperimentSeed = (value, options = {}) => {
     seed = normalizeSeed(value);
-    seedSource = "api";
+    seedSource = options.source || "api";
     rewind();
     renderSeedLabel();
+    syncSeedControls();
     if (options.resetWorld === true) LG.seedWorld();
     return LG.getExperimentDiagnostics();
   };
@@ -121,12 +130,67 @@
     return seedWorld.apply(LG, args);
   };
 
+  async function copyReplayUrl() {
+    const replayUrl = LG.getExperimentReplayUrl();
+    try {
+      if (!navigator?.clipboard?.writeText) throw new Error("Clipboard unavailable");
+      await navigator.clipboard.writeText(replayUrl);
+      syncSeedControls("复现链接已复制");
+      LG.showToast?.("复现链接已复制");
+      return true;
+    } catch {
+      syncSeedControls("无法访问剪贴板，请从诊断中复制复现链接");
+      LG.showToast?.("无法访问剪贴板");
+      return false;
+    }
+  }
+
+  function bindSeedControls() {
+    if (typeof document === "undefined") return false;
+    const form = document.querySelector("#experimentSeedForm");
+    const input = document.querySelector("#experimentSeedInput");
+    const copyButton = document.querySelector("#copyExperimentReplay");
+    if (!form || !input || !copyButton || form.dataset.bound === "true") return false;
+
+    form.dataset.bound = "true";
+    input.value = seed;
+    form.addEventListener("submit", (event) => {
+      event.preventDefault();
+      const diagnostics = LG.setExperimentSeed(input.value, {
+        resetWorld: true,
+        source: "control",
+      });
+      LG.camera?.reset?.();
+      syncSeedControls(`已重置为种子 ${diagnostics.seed}`);
+      LG.showToast?.("已使用新种子重置世界");
+    });
+    copyButton.addEventListener("click", () => copyReplayUrl());
+    return true;
+  }
+
+  LG.getExperimentControlDiagnostics = () => ({
+    mounted: typeof document !== "undefined"
+      && Boolean(document.querySelector("#experimentSeedForm")?.dataset.bound === "true"),
+    seed,
+    replayUrl: LG.getExperimentReplayUrl(),
+  });
+  LG.experimentControlModel = Object.freeze({
+    version: "experiment-controls-v1",
+    resetsWorldOnApply: true,
+    copiesReplayUrl: true,
+  });
+
   rewind();
   if (typeof document !== "undefined") {
-    if (document.readyState === "loading") {
-      document.addEventListener("DOMContentLoaded", renderSeedLabel, { once: true });
-    } else {
+    const initializeUi = () => {
       renderSeedLabel();
+      bindSeedControls();
+      syncSeedControls();
+    };
+    if (document.readyState === "loading") {
+      document.addEventListener("DOMContentLoaded", initializeUi, { once: true });
+    } else {
+      initializeUi();
     }
   }
 })();
