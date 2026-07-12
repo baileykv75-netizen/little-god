@@ -22,6 +22,7 @@ jobs:
           node --check src/genesis/group-behavior-v1.js
           node --check src/genesis/group-observer-v1.js
           node --check src/genesis/kinship-v1.js
+          node --check src/genesis/speciation-v1.js
           node --check src/genesis/arcane-bloodline-v1.js
           node --check src/genesis/bloodline-observer-v1.js
           node --check src/genesis/terrain-diagnostics-contract.js
@@ -40,5 +41,6 @@ jobs:
           node tests/group-behavior.test.cjs
           node tests/group-observer.test.cjs
           node tests/kinship.test.cjs
+          node tests/speciation.test.cjs
           node tests/arcane-bloodline.test.cjs
           node tests/bloodline-observer.test.cjs
