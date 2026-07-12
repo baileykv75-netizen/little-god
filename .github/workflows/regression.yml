@@ -18,6 +18,8 @@ jobs:
           node --check src/genesis/rng-v1.js
           node --check src/genesis/experiment-telemetry-v1.js
           node --check src/genesis/simulation.js
+          node --check src/genesis/ecology-stability-v1.js
+          node --check src/genesis/diagnostics.js
           node --check src/genesis/active-traits-v1.js
           node --check src/genesis/group-behavior-v1.js
           node --check src/genesis/group-observer-v1.js
@@ -38,6 +40,8 @@ jobs:
           node tests/seeded-rng.test.cjs
           node tests/experiment-telemetry.test.cjs
           node tests/experiment-seed-controls.test.cjs
+          node tests/ecology-stability.test.cjs
+          node tests/compact-diagnostics.test.cjs
           node tests/active-traits.test.cjs
           node tests/group-behavior.test.cjs
           node tests/group-observer.test.cjs
