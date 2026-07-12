@@ -7,52 +7,49 @@
     throw new Error("Ecology stability requires simulation.js");
   }
 
-  const HUNTER_PREY_RATIO_MIN = 1.6;
-  const HUNTER_LOW_POP_RATIO_MIN = 1.15;
-  const SPRING_GREEN_GAIN_THRESHOLD = 24;
-  const SPRING_ROOT_RECOVERY_THRESHOLD = 12;
-  const SPRING_GERMINATION_THRESHOLD = 0.35;
-  const MAX_SPRING_RECORDS = 80;
-  const MAX_YEARLY_RECORDS = 120;
-
   const s = LG.state;
+  const HUNTER_RATIO_MIN = 1.6;
+  const HUNTER_LOW_POP_RATIO_MIN = 1.15;
+  const SPRING_GREEN_GAIN_MIN = 24;
+  const SPRING_ROOT_RECOVERY_MIN = 24;
+  const SPRING_GERMINATION_MIN = 0.35;
+  const MAX_HISTORY = 120;
+
   let hunterFailures;
   let hunterTotals;
-  let lastHunterSnapshot;
-  let springRecords;
-  let currentSpring;
+  let hunterSnapshot;
+  let springHistory;
+  let activeSpring;
   let yearlyTimeline;
   let yearBaseline;
-  let populationSummary;
+  let populations;
   let milestones;
   let previousPresence;
 
-  function freshFailures() {
-    return {
-      seasonClosed: 0,
-      noAdultFemale: 0,
-      noAdultMale: 0,
-      femaleEnergy: 0,
-      femaleCooldown: 0,
-      preyRatio: 0,
-      populationPressure: 0,
-      noMateInRange: 0,
-      mateNotReady: 0,
-      staleMeal: 0,
-      readinessBuilding: 0,
-      worldCapacity: 0,
-      createFailed: 0,
-    };
-  }
+  const blankFailures = () => ({
+    seasonClosed: 0,
+    noAdultFemale: 0,
+    noAdultMale: 0,
+    femaleEnergy: 0,
+    femaleCooldown: 0,
+    preyRatio: 0,
+    populationPressure: 0,
+    noMateInRange: 0,
+    mateNotReady: 0,
+    staleMeal: 0,
+    readinessBuilding: 0,
+    worldCapacity: 0,
+    createFailed: 0,
+  });
 
-  function lifetimeCopy() {
+  function lifetimeCounters() {
     return {
       hunterBirths: Number(s.lifetime?.hunterBirths) || 0,
       springRecoveries: Number(s.lifetime?.springRecoveries) || 0,
     };
   }
 
-  function resourceCopy() {
+  function resources() {
     const totals = LG.getResourceTotals();
     return {
       green: totals.green,
@@ -63,24 +60,23 @@
   }
 
   function resetDiagnostics() {
-    hunterFailures = freshFailures();
+    hunterFailures = blankFailures();
     hunterTotals = { evaluations: 0, attempts: 0, successes: 0 };
-    lastHunterSnapshot = {
+    hunterSnapshot = {
       adultFemales: 0,
       adultMales: 0,
       energyReady: 0,
       cooldownReady: 0,
       localPreyRatioReady: 0,
       foundMate: 0,
+      globalPreyPerHunter: 0,
+      requiredPreyPerHunter: HUNTER_RATIO_MIN,
     };
-    springRecords = [];
-    currentSpring = null;
+    springHistory = [];
+    activeSpring = null;
     yearlyTimeline = [];
-    yearBaseline = {
-      year: Math.floor(s.year || 0),
-      lifetime: lifetimeCopy(),
-    };
-    populationSummary = {
+    yearBaseline = { year: Math.floor(s.year || 0), lifetime: lifetimeCounters() };
+    populations = {
       initial: { grazers: s.grazers.length, hunters: s.hunters.length },
       maximum: { grazers: s.grazers.length, hunters: s.hunters.length },
       final: { grazers: s.grazers.length, hunters: s.hunters.length },
@@ -93,14 +89,9 @@
       longestCoexistence: Number(s.longestCoexistence) || 0,
     };
     previousPresence = {
-      grazers: s.grazers.length > 0,
       hunters: s.hunters.length > 0,
+      grazers: s.grazers.length > 0,
     };
-  }
-
-  function countNearby(source, targets, radius) {
-    const radiusSquared = radius * radius;
-    return targets.filter((target) => LG.distanceSquared(source, target) <= radiusSquared);
   }
 
   function statsOf(animal) {
@@ -113,10 +104,14 @@
     };
   }
 
-  function adultReady(animal, energyFactor = 0.74) {
-    const derived = statsOf(animal);
+  function nearby(source, targets, radius) {
+    const limit = radius * radius;
+    return targets.filter((target) => LG.distanceSquared(source, target) <= limit);
+  }
+
+  function readyMale(animal) {
     return LG.lifeStage(animal) === "adult"
-      && animal.energy >= LG.SPECIES.hunter.reproductionEnergy * energyFactor
+      && animal.energy >= LG.SPECIES.hunter.reproductionEnergy * 0.74
       && animal.reproductionCooldown <= 0;
   }
 
@@ -126,6 +121,7 @@
       hunterFailures.worldCapacity += 1;
       return false;
     }
+
     const motherStats = statsOf(mother);
     const fatherStats = statsOf(father);
     const child = LG.createAnimal("hunter", (mother.x + father.x) / 2, (mother.y + father.y) / 2, {
@@ -164,16 +160,15 @@
   }
 
   function evaluateHunterReproduction(dt) {
-    const population = s.hunters;
     const config = LG.SPECIES.hunter;
-    const season = LG.reproductionSeasonMultiplier();
-    const adults = population.filter((animal) => LG.lifeStage(animal) === "adult");
+    const adults = s.hunters.filter((animal) => LG.lifeStage(animal) === "adult");
     const females = adults.filter((animal) => animal.sex === "female");
     const males = adults.filter((animal) => animal.sex === "male");
-    const globalRatio = s.grazers.length / Math.max(1, population.length);
-    const ratioThreshold = population.length <= 3 ? HUNTER_LOW_POP_RATIO_MIN : HUNTER_PREY_RATIO_MIN;
+    const globalRatio = s.grazers.length / Math.max(1, s.hunters.length);
+    const requiredRatio = s.hunters.length <= 3 ? HUNTER_LOW_POP_RATIO_MIN : HUNTER_RATIO_MIN;
+    const season = LG.reproductionSeasonMultiplier();
 
-    lastHunterSnapshot = {
+    hunterSnapshot = {
       adultFemales: females.length,
       adultMales: males.length,
       energyReady: females.filter((animal) => animal.energy >= config.reproductionEnergy * 0.74).length,
@@ -181,17 +176,16 @@
       localPreyRatioReady: 0,
       foundMate: 0,
       globalPreyPerHunter: globalRatio,
-      requiredPreyPerHunter: ratioThreshold,
+      requiredPreyPerHunter: requiredRatio,
     };
 
     if (!females.length) hunterFailures.noAdultFemale += 1;
     if (!males.length) hunterFailures.noAdultMale += 1;
     if (season <= 0) {
-      if (females.length) hunterFailures.seasonClosed += females.length;
+      hunterFailures.seasonClosed += females.length;
       return false;
     }
 
-    let birth = false;
     for (const female of females) {
       hunterTotals.evaluations += 1;
       const derived = statsOf(female);
@@ -204,29 +198,28 @@
         continue;
       }
 
-      const senseRadius = Math.max(derived.senseRadius || config.senseRadius, 260);
-      const localPrey = countNearby(female, s.grazers, senseRadius).length;
-      const localHunters = Math.max(1, countNearby(female, population, senseRadius).length);
-      const localRatio = localPrey / localHunters;
-      const effectiveRatio = Math.max(localRatio, globalRatio * 0.72);
-      if (effectiveRatio < ratioThreshold) {
+      const senseRadius = Math.max(260, derived.senseRadius || config.senseRadius);
+      const localPrey = nearby(female, s.grazers, senseRadius).length;
+      const localHunters = Math.max(1, nearby(female, s.hunters, senseRadius).length);
+      const effectiveRatio = Math.max(localPrey / localHunters, globalRatio * 0.72);
+      if (effectiveRatio < requiredRatio) {
         hunterFailures.preyRatio += 1;
         continue;
       }
-      lastHunterSnapshot.localPreyRatioReady += 1;
+      hunterSnapshot.localPreyRatioReady += 1;
 
-      if (population.length > 2 && globalRatio < 1.05) {
+      if (s.hunters.length > 2 && globalRatio < 1.05) {
         hunterFailures.populationPressure += 1;
         continue;
       }
 
       const mateRange = Math.max(260, derived.mateRange || 220, senseRadius * 0.82);
-      const nearbyMales = countNearby(female, males, mateRange);
-      if (!nearbyMales.length) {
+      const malesInRange = nearby(female, males, mateRange);
+      if (!malesInRange.length) {
         hunterFailures.noMateInRange += 1;
         continue;
       }
-      const readyMales = nearbyMales.filter((male) => adultReady(male));
+      const readyMales = malesInRange.filter(readyMale);
       if (!readyMales.length) {
         hunterFailures.mateNotReady += 1;
         continue;
@@ -236,7 +229,7 @@
         hunterFailures.noMateInRange += 1;
         continue;
       }
-      lastHunterSnapshot.foundMate += 1;
+      hunterSnapshot.foundMate += 1;
 
       const recentlyFed = Math.min(female.lastMealAge ?? Infinity, male.lastMealAge ?? Infinity) <= 6;
       const wellProvisioned = female.energy >= derived.maxEnergy * 0.88
@@ -246,14 +239,12 @@
         continue;
       }
 
-      const preyFactor = LG.clamp(effectiveRatio / 4, 0.45, 1.15);
-      const lowPopulationBoost = population.length <= 3 ? 1.45 : 1;
       const gain = 3.8
         * s.rules.fertility
         * season
         * (derived.fertilityMultiplier || 1)
-        * preyFactor
-        * lowPopulationBoost
+        * LG.clamp(effectiveRatio / 4, 0.45, 1.15)
+        * (s.hunters.length <= 3 ? 1.45 : 1)
         * dt;
       female.ecologyBreedingReadiness = Math.min(1.25, (female.ecologyBreedingReadiness || 0) + gain);
       if (female.ecologyBreedingReadiness < 1) {
@@ -262,70 +253,58 @@
       }
 
       hunterTotals.attempts += 1;
-      if (createHunterChild(female, male)) {
-        birth = true;
-        break;
-      }
+      if (createHunterChild(female, male)) return true;
     }
-    return birth;
+    return false;
   }
 
-  function metricDelta(after, before, key) {
-    return Math.max(0, (Number(after?.[key]) || 0) - (Number(before?.[key]) || 0));
-  }
+  const positiveDelta = (after, before, key) => Math.max(
+    0,
+    (Number(after?.[key]) || 0) - (Number(before?.[key]) || 0),
+  );
 
-  function startSpring(year, resources, metrics) {
-    currentSpring = {
+  function beginSpring(year, startResources) {
+    activeSpring = {
       year,
-      startGreen: resources.green,
-      endGreen: resources.green,
+      startGreen: startResources.green,
+      endGreen: startResources.green,
       greenGain: 0,
       netGreenGain: 0,
       rootRecovery: 0,
       seedGerminated: 0,
       triggeredSpringRecovery: false,
-      metricBaseline: { ...metrics },
     };
   }
 
-  function completeSpring() {
-    if (!currentSpring) return;
-    currentSpring.netGreenGain = currentSpring.endGreen - currentSpring.startGreen;
-    delete currentSpring.metricBaseline;
-    springRecords.push({ ...currentSpring });
-    if (springRecords.length > MAX_SPRING_RECORDS) springRecords.shift();
-    currentSpring = null;
+  function finishSpring() {
+    if (!activeSpring) return;
+    activeSpring.netGreenGain = activeSpring.endGreen - activeSpring.startGreen;
+    springHistory.push({ ...activeSpring });
+    if (springHistory.length > MAX_HISTORY) springHistory.shift();
+    activeSpring = null;
   }
 
-  function updateSpringDiagnostics(beforeResources, afterResources, beforeMetrics, afterMetrics, beforeSeason, afterSeason) {
-    if (beforeSeason !== "spring" && afterSeason === "spring") {
-      startSpring(Math.floor(s.year), afterResources, afterMetrics);
-    }
-    if (afterSeason === "spring" && !currentSpring) {
-      startSpring(Math.floor(s.year), beforeResources, beforeMetrics);
-    }
-    if (afterSeason === "spring" && currentSpring) {
-      const positiveGreen = Math.max(0, afterResources.green - beforeResources.green);
-      const germinated = metricDelta(afterMetrics, beforeMetrics, "seedGerminated");
-      const greenGrowth = metricDelta(afterMetrics, beforeMetrics, "greenGrowth");
-      const rootSupported = Math.max(0, greenGrowth - germinated * 0.38);
-      const seedProduced = metricDelta(afterMetrics, beforeMetrics, "seedProduced");
-
-      currentSpring.endGreen = afterResources.green;
-      currentSpring.greenGain += positiveGreen;
-      currentSpring.rootRecovery += rootSupported;
-      currentSpring.seedGerminated += germinated;
+  function updateSpring(beforeResources, afterResources, beforeMetrics, afterMetrics, beforeSeason, afterSeason) {
+    if (afterSeason === "spring" && !activeSpring) beginSpring(Math.floor(s.year), beforeResources);
+    if (afterSeason === "spring" && activeSpring) {
+      const germinated = positiveDelta(afterMetrics, beforeMetrics, "seedGerminated");
+      const greenGrowth = positiveDelta(afterMetrics, beforeMetrics, "greenGrowth");
+      const seedProduced = positiveDelta(afterMetrics, beforeMetrics, "seedProduced");
+      activeSpring.endGreen = afterResources.green;
+      activeSpring.greenGain += Math.max(0, afterResources.green - beforeResources.green);
+      activeSpring.rootRecovery += Math.max(0, greenGrowth - germinated * 0.38);
+      activeSpring.seedGerminated += germinated;
 
       if (germinated > 0) LG.incrementMetric("germinatedBiomass", germinated * 0.38);
       if (seedProduced > 0) LG.incrementMetric("seedDispersals", seedProduced);
 
-      const recovered = currentSpring.greenGain >= SPRING_GREEN_GAIN_THRESHOLD
-        || currentSpring.rootRecovery >= SPRING_ROOT_RECOVERY_THRESHOLD
-        || currentSpring.seedGerminated >= SPRING_GERMINATION_THRESHOLD;
-      if (recovered && !currentSpring.triggeredSpringRecovery) {
-        currentSpring.triggeredSpringRecovery = true;
-        if (s.springRecoveryYear !== currentSpring.year) {
-          s.springRecoveryYear = currentSpring.year;
+      const recovered = activeSpring.greenGain >= SPRING_GREEN_GAIN_MIN
+        || activeSpring.rootRecovery >= SPRING_ROOT_RECOVERY_MIN
+        || activeSpring.seedGerminated >= SPRING_GERMINATION_MIN;
+      if (recovered && !activeSpring.triggeredSpringRecovery) {
+        activeSpring.triggeredSpringRecovery = true;
+        if (s.springRecoveryYear !== activeSpring.year) {
+          s.springRecoveryYear = activeSpring.year;
           LG.incrementMetric("springRecoveries");
           if (milestones.firstSpringRecoveryYear === null) milestones.firstSpringRecoveryYear = s.year;
           if (!s.eventFlags.firstSpringRecovery) {
@@ -335,24 +314,23 @@
         }
       }
     }
-    if (beforeSeason === "spring" && afterSeason !== "spring") completeSpring();
+    if (beforeSeason === "spring" && afterSeason !== "spring") finishSpring();
   }
 
-  function updatePopulationMilestones() {
-    populationSummary.maximum.grazers = Math.max(populationSummary.maximum.grazers, s.grazers.length);
-    populationSummary.maximum.hunters = Math.max(populationSummary.maximum.hunters, s.hunters.length);
-    populationSummary.final = { grazers: s.grazers.length, hunters: s.hunters.length };
+  function updateMilestones() {
+    populations.maximum.grazers = Math.max(populations.maximum.grazers, s.grazers.length);
+    populations.maximum.hunters = Math.max(populations.maximum.hunters, s.hunters.length);
+    populations.final = { grazers: s.grazers.length, hunters: s.hunters.length };
     milestones.longestCoexistence = Math.max(milestones.longestCoexistence, Number(s.longestCoexistence) || 0);
 
-    const hunterPresent = s.hunters.length > 0;
-    const grazerPresent = s.grazers.length > 0;
-    if (previousPresence.hunters && !hunterPresent && milestones.hunterExtinctionYear === null) {
+    const currentPresence = { grazers: s.grazers.length > 0, hunters: s.hunters.length > 0 };
+    if (previousPresence.hunters && !currentPresence.hunters && milestones.hunterExtinctionYear === null) {
       milestones.hunterExtinctionYear = s.year;
     }
-    if (previousPresence.grazers && !grazerPresent && milestones.grazerExtinctionYear === null) {
+    if (previousPresence.grazers && !currentPresence.grazers && milestones.grazerExtinctionYear === null) {
       milestones.grazerExtinctionYear = s.year;
     }
-    previousPresence = { hunters: hunterPresent, grazers: grazerPresent };
+    previousPresence = currentPresence;
 
     if (milestones.firstHunterBirthYear === null && (s.lifetime?.hunterBirths || 0) > 0) {
       milestones.firstHunterBirthYear = s.year;
@@ -362,33 +340,29 @@
     }
   }
 
-  function recordYearBoundary(previousYear, currentYear) {
+  function recordYear(previousYear, currentYear) {
     if (currentYear <= previousYear) return;
-    const resources = resourceCopy();
-    const lifetime = lifetimeCopy();
+    const totals = resources();
+    const lifetime = lifetimeCounters();
     yearlyTimeline.push({
       year: previousYear,
       grazers: s.grazers.length,
       hunters: s.hunters.length,
-      green: resources.green,
-      dry: resources.dry,
-      seeds: resources.seeds,
-      roots: resources.roots,
+      green: totals.green,
+      dry: totals.dry,
+      seeds: totals.seeds,
+      roots: totals.roots,
       hunterBirths: lifetime.hunterBirths - yearBaseline.lifetime.hunterBirths,
       springRecoveries: lifetime.springRecoveries - yearBaseline.lifetime.springRecoveries,
     });
-    if (yearlyTimeline.length > MAX_YEARLY_RECORDS) yearlyTimeline.shift();
+    if (yearlyTimeline.length > MAX_HISTORY) yearlyTimeline.shift();
     yearBaseline = { year: currentYear, lifetime };
   }
 
   function compactSummary() {
     const experiment = LG.getExperimentDiagnostics?.() || {};
-    const balance = LG.calculateBalance?.() || { label: "unknown" };
+    const balance = LG.calculateBalance?.() || { label: "unknown", score: null, advice: null };
     const criteria = LG.missionCriteria?.() || {};
-    const failedCriteria = Object.entries(criteria)
-      .filter(([, passed]) => !passed)
-      .map(([key]) => key);
-    const liveSpring = currentSpring ? [{ ...currentSpring, metricBaseline: undefined }] : [];
     return {
       meta: {
         version: "ecology-supervision-v1",
@@ -402,24 +376,27 @@
         label: balance.label,
         score: balance.score,
         advice: balance.advice,
-        failedCriteria,
+        failedCriteria: Object.entries(criteria).filter(([, passed]) => !passed).map(([key]) => key),
       },
       milestones: { ...milestones },
       populationSummary: {
-        initial: { ...populationSummary.initial },
-        maximum: { ...populationSummary.maximum },
-        final: { ...populationSummary.final },
+        initial: { ...populations.initial },
+        maximum: { ...populations.maximum },
+        final: { ...populations.final },
       },
       reproductionDiagnostics: {
         hunter: {
-          ...lastHunterSnapshot,
+          ...hunterSnapshot,
           attempts: hunterTotals.attempts,
           successes: hunterTotals.successes,
           evaluations: hunterTotals.evaluations,
           failureReasons: { ...hunterFailures },
         },
       },
-      springDiagnostics: [...springRecords, ...liveSpring],
+      springDiagnostics: [
+        ...springHistory.map((entry) => ({ ...entry })),
+        ...(activeSpring ? [{ ...activeSpring }] : []),
+      ],
       yearlyTimeline: yearlyTimeline.map((entry) => ({ ...entry })),
     };
   }
@@ -438,16 +415,21 @@
 
   const baseUpdateWorld = LG.updateWorld;
   LG.updateWorld = (dt) => {
-    const previousYearFloor = Math.floor(s.year);
+    const previousYear = Math.floor(s.year);
     const beforeSeason = s.season;
-    const beforeResources = resourceCopy();
+    const beforeResources = resources();
     const beforeMetrics = { ...(s.vegetationMetrics || {}) };
     const result = baseUpdateWorld(dt);
-    const afterResources = resourceCopy();
-    const afterMetrics = { ...(s.vegetationMetrics || {}) };
-    updateSpringDiagnostics(beforeResources, afterResources, beforeMetrics, afterMetrics, beforeSeason, s.season);
-    updatePopulationMilestones();
-    recordYearBoundary(previousYearFloor, Math.floor(s.year));
+    updateSpring(
+      beforeResources,
+      resources(),
+      beforeMetrics,
+      { ...(s.vegetationMetrics || {}) },
+      beforeSeason,
+      s.season,
+    );
+    updateMilestones();
+    recordYear(previousYear, Math.floor(s.year));
     return result;
   };
 
@@ -463,7 +445,7 @@
   LG.ecologyStabilityModel = Object.freeze({
     version: "ecology-stability-v1",
     hunterPopulationHardBanRemoved: true,
-    hunterPreyRatioMinimum: HUNTER_PREY_RATIO_MIN,
+    hunterPreyRatioMinimum: HUNTER_RATIO_MIN,
     springRecoveryMode: "whole-spring-cumulative",
     seedMetricSource: "continuous-grid-budget",
   });
@@ -475,10 +457,7 @@
       const telemetry = window.LittleGodTelemetry;
       if (!telemetry?.getSnapshot || telemetry.getSnapshot.__ecologyStabilityWrapped) return;
       const baseSnapshot = telemetry.getSnapshot;
-      const wrapped = () => ({
-        ...baseSnapshot(),
-        compactSummary: compactSummary(),
-      });
+      const wrapped = () => ({ ...baseSnapshot(), compactSummary: compactSummary() });
       wrapped.__ecologyStabilityWrapped = true;
       telemetry.getSnapshot = wrapped;
     });
