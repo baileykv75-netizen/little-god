@@ -40,7 +40,15 @@ const closeKinMale = hunter(4, "male", 650);
 const state = {
   year: 4.25,
   hunters: [female, male, hungryFemale, closeKinMale],
-  grazers: [grazer(10, 160), grazer(11, 210), grazer(12, 500), grazer(13, 540), grazer(14, 600), grazer(15, 620)],
+  grazers: [
+    grazer(10, 160),
+    grazer(11, 210),
+    grazer(12, 280),
+    grazer(13, 500),
+    grazer(14, 540),
+    grazer(15, 600),
+    grazer(16, 620),
+  ],
 };
 
 const LittleGod = {
@@ -102,17 +110,18 @@ assert.ok(moved.some((entry) => entry.id === male.id),
 assert.equal(hungryFemale.state, "wander",
   "Low-energy hunters must keep normal behavior instead of seeking mates");
 assert.equal(hungryFemale.mateSeeking, undefined);
-assert.equal(closeKinMale.mateSeeking?.targetId, 2,
-  "Close kin must be ignored while another compatible local mate remains available");
+assert.equal(closeKinMale.mateSeeking, undefined,
+  "A hunter must not seek a close relative when no other compatible female is locally available");
 assert.equal(LittleGod.wander.name, "wander",
   "Temporary wander replacement must be restored after the hunter update");
 
 const diagnostics = LittleGod.getHunterMateSeekingDiagnostics();
 assert.equal(diagnostics.version, "hunter-mate-seeking-v1");
 assert.equal(diagnostics.perceptionMode, "local-sense-radius-only");
-assert.ok(diagnostics.searches >= 2);
+assert.ok(diagnostics.searches >= 3);
 assert.ok(diagnostics.directedMoves >= 2);
 assert.ok(diagnostics.blockedByEnergy >= 1);
+assert.ok(diagnostics.noCompatibleMate >= 1);
 assert.ok(diagnostics.lastSeekers.some((entry) => entry.seekerId === 1 && entry.targetId === 2));
 assert.ok(diagnostics.lastSeekers.every((entry) => entry.searchRadius <= 720));
 
