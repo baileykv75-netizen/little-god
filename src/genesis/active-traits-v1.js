@@ -20,6 +20,10 @@
     return LG.clamp(Number.isFinite(value) ? value : fallback, 0, 100) / 100;
   }
 
+  function stableYears(value) {
+    return Math.round(Math.max(0, value) * 1e9) / 1e9;
+  }
+
   function memorySpanYears(animal) {
     return LG.clamp(Number.isFinite(animal.traits?.memorySpan)
       ? animal.traits.memorySpan
@@ -46,8 +50,8 @@
     animal.observationMemory.socialCenter = {
       x: center.x,
       y: center.y,
-      observedYear: state.year,
-      expiresYear: state.year + span,
+      observedYear: stableYears(state.year),
+      expiresYear: stableYears(state.year + span),
     };
     return animal.observationMemory.socialCenter;
   }
@@ -124,7 +128,7 @@
           neighborCount: 0,
           sociality,
           memoryActive: true,
-          memoryAge: Math.max(0, state.year - memory.observedYear),
+          memoryAge: stableYears(state.year - memory.observedYear),
         };
       }
       delete animal.observationMemory.socialCenter;
@@ -203,7 +207,7 @@
       population: animals.length,
       activeCount,
       rememberedCount,
-      averageMemoryAge: rememberedCount ? memoryAgeTotal / rememberedCount : 0,
+      averageMemoryAge: rememberedCount ? stableYears(memoryAgeTotal / rememberedCount) : 0,
       averageSociality: animals.length ? socialityTotal / animals.length : 0,
       modes,
     };
