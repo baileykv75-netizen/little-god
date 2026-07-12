@@ -20,6 +20,7 @@ jobs:
           node --check src/genesis/simulation.js
           node --check src/genesis/active-traits-v1.js
           node --check src/genesis/kinship-v1.js
+          node --check src/genesis/arcane-bloodline-v1.js
           node --check src/genesis/terrain-diagnostics-contract.js
           node --check src/genesis/terrain-renderer-v2.js
       - name: Checkpoint regression tests
@@ -34,3 +35,4 @@ jobs:
           node tests/experiment-seed-controls.test.cjs
           node tests/active-traits.test.cjs
           node tests/kinship.test.cjs
+          node tests/arcane-bloodline.test.cjs
