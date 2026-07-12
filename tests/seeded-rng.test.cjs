@@ -46,7 +46,7 @@ assert.equal(typeof LittleGod.random, "function");
 assert.equal(typeof LittleGod.setExperimentSeed, "function");
 assert.equal(typeof LittleGod.getExperimentDiagnostics, "function");
 assert.equal(typeof LittleGod.getRuntimeBuildDiagnostics, "function");
-assert.equal(buildLabel.textContent, "v0.6.6 · seed repeatable-fore…");
+assert.equal(buildLabel.textContent, "v0.6.6 · seed repeatable-forest");
 assert.ok(buildLabel.title.includes("构建：v0.6.6"));
 assert.ok(buildLabel.title.includes("repeatable-forest"));
 
