@@ -1,0 +1,106 @@
+.genesis-ecotype-card {
+  display: grid;
+  gap: 8px;
+  margin-top: 9px;
+  padding: 9px;
+  border: 1px solid rgba(67, 122, 96, 0.22);
+  border-radius: 12px;
+  background: linear-gradient(145deg, rgba(238, 249, 241, 0.94), rgba(244, 248, 234, 0.86));
+  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.76);
+}
+
+.genesis-ecotype-card.is-courser,
+.genesis-ecotype-card.is-pursuer {
+  border-color: rgba(60, 139, 126, 0.38);
+  background: linear-gradient(145deg, rgba(231, 249, 246, 0.95), rgba(242, 250, 238, 0.9));
+}
+
+.genesis-ecotype-card.is-bulwark,
+.genesis-ecotype-card.is-ambusher {
+  border-color: rgba(155, 112, 62, 0.38);
+  background: linear-gradient(145deg, rgba(250, 242, 228, 0.96), rgba(244, 247, 235, 0.9));
+}
+
+.genesis-ecotype-head {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 8px;
+}
+
+.genesis-ecotype-head > div {
+  display: grid;
+  gap: 2px;
+}
+
+.genesis-ecotype-head strong {
+  color: #315e4d;
+  font-size: 0.74rem;
+}
+
+.genesis-ecotype-head small {
+  color: var(--muted);
+  font-size: 0.61rem;
+}
+
+.genesis-ecotype-status {
+  flex: 0 0 auto;
+  padding: 4px 7px;
+  border-radius: 999px;
+  color: #fff;
+  background: #668b72;
+  font-size: 0.61rem;
+  font-weight: 800;
+}
+
+.is-courser .genesis-ecotype-status,
+.is-pursuer .genesis-ecotype-status {
+  background: linear-gradient(135deg, #3f9b88, #4e8f65);
+}
+
+.is-bulwark .genesis-ecotype-status,
+.is-ambusher .genesis-ecotype-status {
+  background: linear-gradient(135deg, #a7723f, #6e7c55);
+}
+
+.genesis-ecotype-metrics {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 5px;
+}
+
+.genesis-ecotype-metrics span {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 6px;
+  min-width: 0;
+  padding: 5px 6px;
+  border-radius: 8px;
+  background: rgba(255, 255, 255, 0.62);
+}
+
+.genesis-ecotype-metrics small {
+  color: var(--muted);
+  font-size: 0.59rem;
+}
+
+.genesis-ecotype-metrics strong {
+  color: #315e4d;
+  font-size: 0.62rem;
+  font-variant-numeric: tabular-nums;
+  white-space: nowrap;
+}
+
+.genesis-ecotype-note {
+  margin: 0;
+  color: var(--muted);
+  font-size: 0.61rem;
+  line-height: 1.45;
+}
+
+@media (max-width: 760px) {
+  .genesis-ecotype-metrics {
+    grid-template-columns: 1fr;
+  }
+}
