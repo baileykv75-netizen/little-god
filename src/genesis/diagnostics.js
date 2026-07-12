@@ -21,6 +21,95 @@
     lastSignature: "",
   };
 
+  const plantFlowBridge = {
+    seedProduced: 0,
+    seedGerminated: 0,
+    bridgedSeedDispersals: 0,
+    bridgedGerminatedBiomass: 0,
+  };
+
+  const numericMetric = (source, key) => Number(source?.[key]) || 0;
+  const positiveMetricDelta = (after, before, key) => Math.max(
+    0,
+    numericMetric(after, key) - numericMetric(before, key),
+  );
+
+  function resetPlantFlowBridge() {
+    plantFlowBridge.seedProduced = 0;
+    plantFlowBridge.seedGerminated = 0;
+    plantFlowBridge.bridgedSeedDispersals = 0;
+    plantFlowBridge.bridgedGerminatedBiomass = 0;
+  }
+
+  function plantFlowDiagnostics() {
+    const LG = window.LittleGod;
+    return {
+      version: "continuous-plant-flow-v1",
+      source: "continuous-grid-vegetation-budget",
+      seedProduced: numericMetric(LG?.state?.vegetationMetrics, "seedProduced"),
+      seedGerminated: numericMetric(LG?.state?.vegetationMetrics, "seedGerminated"),
+      germinatedBiomass: numericMetric(LG?.state?.lifetime, "germinatedBiomass"),
+      seedDispersals: numericMetric(LG?.state?.lifetime, "seedDispersals"),
+      observedDeltas: {
+        seedProduced: plantFlowBridge.seedProduced,
+        seedGerminated: plantFlowBridge.seedGerminated,
+      },
+      bridgeAdditions: {
+        germinatedBiomass: plantFlowBridge.bridgedGerminatedBiomass,
+        seedDispersals: plantFlowBridge.bridgedSeedDispersals,
+      },
+    };
+  }
+
+  function installPlantFlowBridge() {
+    const LG = window.LittleGod;
+    if (!LG?.state || typeof LG.updateWorld !== "function" || LG.updateWorld.__plantFlowBridge) return;
+
+    const baseUpdateWorld = LG.updateWorld;
+    const wrappedUpdateWorld = (dt) => {
+      const beforeVegetation = { ...(LG.state.vegetationMetrics || {}) };
+      const beforeLifetime = { ...(LG.state.lifetime || {}) };
+      const result = baseUpdateWorld(dt);
+      const afterVegetation = { ...(LG.state.vegetationMetrics || {}) };
+      const afterLifetime = { ...(LG.state.lifetime || {}) };
+
+      const germinated = positiveMetricDelta(afterVegetation, beforeVegetation, "seedGerminated");
+      const produced = positiveMetricDelta(afterVegetation, beforeVegetation, "seedProduced");
+      const expectedBiomass = germinated * 0.38;
+      const alreadyCountedBiomass = positiveMetricDelta(afterLifetime, beforeLifetime, "germinatedBiomass");
+      const alreadyCountedDispersals = positiveMetricDelta(afterLifetime, beforeLifetime, "seedDispersals");
+      const missingBiomass = Math.max(0, expectedBiomass - alreadyCountedBiomass);
+      const missingDispersals = Math.max(0, produced - alreadyCountedDispersals);
+
+      plantFlowBridge.seedGerminated += germinated;
+      plantFlowBridge.seedProduced += produced;
+      if (missingBiomass > 1e-9 && typeof LG.incrementMetric === "function") {
+        LG.incrementMetric("germinatedBiomass", missingBiomass);
+        plantFlowBridge.bridgedGerminatedBiomass += missingBiomass;
+      }
+      if (missingDispersals > 1e-9 && typeof LG.incrementMetric === "function") {
+        LG.incrementMetric("seedDispersals", missingDispersals);
+        plantFlowBridge.bridgedSeedDispersals += missingDispersals;
+      }
+      return result;
+    };
+    wrappedUpdateWorld.__plantFlowBridge = true;
+    LG.updateWorld = wrappedUpdateWorld;
+
+    if (typeof LG.seedWorld === "function" && !LG.seedWorld.__plantFlowBridge) {
+      const baseSeedWorld = LG.seedWorld;
+      const wrappedSeedWorld = (...args) => {
+        const result = baseSeedWorld.apply(LG, args);
+        resetPlantFlowBridge();
+        return result;
+      };
+      wrappedSeedWorld.__plantFlowBridge = true;
+      LG.seedWorld = wrappedSeedWorld;
+    }
+  }
+
+  installPlantFlowBridge();
+
   const get = (selector) => document.querySelector(selector);
   const text = (selector, fallback = "") => get(selector)?.textContent?.trim() || fallback;
 
@@ -94,6 +183,7 @@
       elapsedRealSeconds: Number(((Date.now() - Date.parse(session.startedAt)) / 1000).toFixed(1)),
       selectedSpecies: selectedSpecies(),
       ...base,
+      plantFlowDiagnostics: plantFlowDiagnostics(),
     };
   }
 
@@ -125,6 +215,7 @@
       balance: value.balance?.label,
       inheritedBirths: value.genesis?.inheritedBirths,
       localMateChoices: value.genesis?.localMateChoices,
+      plantFlow: value.plantFlowDiagnostics,
     });
   }
 
@@ -185,9 +276,13 @@
   function buildReport(playerNotes) {
     recordSample(true);
     const finalSnapshot = snapshot();
-    const compactSummary = finalSnapshot.compactSummary
+    const baseCompactSummary = finalSnapshot.compactSummary
       || window.LittleGod?.getEcologySupervisionDiagnostics?.()
       || null;
+    const compactSummary = baseCompactSummary ? {
+      ...baseCompactSummary,
+      plantFlowDiagnostics: plantFlowDiagnostics(),
+    } : null;
     return {
       reportVersion: session.reportVersion,
       sessionId: session.sessionId,
@@ -222,6 +317,7 @@
         },
         genesis: finalSnapshot.genesis || null,
         lifetimeMetrics: finalSnapshot.lifetimeMetrics || null,
+        plantFlowDiagnostics: plantFlowDiagnostics(),
         recordedSamples: session.samples.length,
         recordedActions: session.actions.length,
         recordedErrors: session.errors.length,
@@ -310,6 +406,7 @@
     buildReport,
     snapshot,
     recordSample,
+    plantFlowDiagnostics,
   });
 
   bindActions();
