@@ -27,13 +27,14 @@
   <script src="src/genesis/speciation-v1.js?v=20260712-1" defer></script>
   <script src="src/genesis/ecotype-observer-v1.js?v=20260712-1" defer></script>
   <script src="src/genesis/simulation.js?v=20260711-13" defer></script>
+  <script src="src/genesis/ecology-stability-v1.js?v=20260712-1" defer></script>
   <script src="src/genesis/active-traits-v1.js?v=20260712-2" defer></script>
   <script src="src/genesis/group-behavior-v1.js?v=20260712-1" defer></script>
   <script src="src/genesis/view-v2.js?v=20260711-13" defer></script>
   <script src="src/genesis/group-observer-v1.js?v=20260712-1" defer></script>
   <script src="src/genesis/terrain-renderer-v2.js?v=20260711-13" defer></script>
   <script src="src/genesis/experiment-telemetry-v1.js?v=20260711-15" defer></script>
-  <script src="src/genesis/diagnostics.js?v=20260711-13" defer></script>
+  <script src="src/genesis/diagnostics.js?v=20260712-2" defer></script>
 </head>
 <body>
   <div class="app-shell">
@@ -232,12 +233,12 @@
     </main>
 
     <footer class="footer-note">
-      <span>Genesis v0.5 · 可观察的生态型分化</span>
-      <p>选中个体后可查看生态型、机动与强健轴、分化幅度，以及最近同型或跨型择偶结果。</p>
+      <span>Genesis v0.5 · 生态稳定性修复</span>
+      <p>猎食兽繁殖不再受数量硬封锁；春季恢复按整季累计判定，诊断导出新增监督精简摘要。</p>
     </footer>
   </div>
 
-  <span class="build-version">v0.6.1 · observable ecotypes</span>
+  <span class="build-version">v0.6.2 · ecology stability diagnostics</span>
   <button id="exportDiagnosticsButton" class="diagnostics-fab" type="button" title="下载本局生态、遗传属性、相机状态、捕猎和报错记录">导出本局诊断</button>
 </body>
 </html>
