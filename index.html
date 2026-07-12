@@ -13,6 +13,7 @@
   <link rel="stylesheet" href="styles/diagnostics.css?v=20260711-13">
   <link rel="stylesheet" href="styles/experiment-controls.css?v=20260712-1">
   <link rel="stylesheet" href="styles/bloodline-observer.css?v=20260712-1">
+  <link rel="stylesheet" href="styles/ecotype-observer.css?v=20260712-1">
   <link rel="stylesheet" href="styles/group-observer.css?v=20260712-1">
   <script src="src/genesis/core.js?v=20260711-13" defer></script>
   <script src="src/genesis/world-v2.js?v=20260711-13" defer></script>
@@ -24,6 +25,7 @@
   <script src="src/genesis/bloodline-observer-v1.js?v=20260712-1" defer></script>
   <script src="src/genesis/kinship-v1.js?v=20260712-2" defer></script>
   <script src="src/genesis/speciation-v1.js?v=20260712-1" defer></script>
+  <script src="src/genesis/ecotype-observer-v1.js?v=20260712-1" defer></script>
   <script src="src/genesis/simulation.js?v=20260711-13" defer></script>
   <script src="src/genesis/active-traits-v1.js?v=20260712-2" defer></script>
   <script src="src/genesis/group-behavior-v1.js?v=20260712-1" defer></script>
@@ -230,12 +232,12 @@
     </main>
 
     <footer class="footer-note">
-      <span>Genesis v0.5 · 物种分化：生态型择偶</span>
-      <p>遗传形态形成疾行、厚甲、追猎与伏击等生态型；高择偶选择性个体优先选择同生态型伴侣，同时保留近亲冲突时的跨型后备。</p>
+      <span>Genesis v0.5 · 可观察的生态型分化</span>
+      <p>选中个体后可查看生态型、机动与强健轴、分化幅度，以及最近同型或跨型择偶结果。</p>
     </footer>
   </div>
 
-  <span class="build-version">v0.6.0 · ecotype differentiation</span>
+  <span class="build-version">v0.6.1 · observable ecotypes</span>
   <button id="exportDiagnosticsButton" class="diagnostics-fab" type="button" title="下载本局生态、遗传属性、相机状态、捕猎和报错记录">导出本局诊断</button>
 </body>
 </html>
