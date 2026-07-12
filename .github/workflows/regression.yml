@@ -29,3 +29,4 @@ jobs:
           node tests/terrain-renderer.test.cjs
           node tests/seeded-rng.test.cjs
           node tests/experiment-telemetry.test.cjs
+          node tests/experiment-seed-controls.test.cjs
