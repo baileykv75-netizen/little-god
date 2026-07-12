@@ -11,10 +11,11 @@
   <link rel="stylesheet" href="styles/genesis-v1.css?v=20260711-13">
   <link rel="stylesheet" href="styles/camera-v2.css?v=20260711-13">
   <link rel="stylesheet" href="styles/diagnostics.css?v=20260711-13">
+  <link rel="stylesheet" href="styles/experiment-controls.css?v=20260712-1">
   <script src="src/genesis/core.js?v=20260711-13" defer></script>
   <script src="src/genesis/world-v2.js?v=20260711-13" defer></script>
   <script src="src/genesis/terrain-store-v2.js?v=20260711-13" defer></script>
-  <script src="src/genesis/rng-v1.js?v=20260711-15" defer></script>
+  <script src="src/genesis/rng-v1.js?v=20260712-1" defer></script>
   <script src="src/genesis/terrain-diagnostics-contract.js?v=20260711-13" defer></script>
   <script src="src/genesis/attributes.js?v=20260711-13" defer></script>
   <script src="src/genesis/simulation.js?v=20260711-13" defer></script>
@@ -107,6 +108,24 @@
             <span><strong>完整四季</strong><small>1×下每季约20秒，冬季保留根系与种子</small></span>
             <span class="switch"><input id="seasonsRule" type="checkbox" checked><span class="switch-track" aria-hidden="true"></span></span>
           </label>
+        </section>
+
+        <section class="control-section experiment-control" aria-labelledby="experimentSeedTitle">
+          <div class="section-heading compact">
+            <span class="section-icon" aria-hidden="true">⌘</span>
+            <div><p class="eyebrow">确定性实验</p><h2 id="experimentSeedTitle">复现同一个世界</h2></div>
+          </div>
+          <form id="experimentSeedForm" class="experiment-seed-form">
+            <label class="experiment-seed-field" for="experimentSeedInput">
+              <span>实验种子</span>
+              <input id="experimentSeedInput" name="seed" type="text" maxlength="64" autocomplete="off" spellcheck="false" aria-describedby="experimentSeedStatus">
+            </label>
+            <div class="experiment-seed-actions">
+              <button class="ghost-button" type="submit">应用并重置</button>
+              <button id="copyExperimentReplay" class="ghost-button" type="button">复制复现链接</button>
+            </div>
+            <p id="experimentSeedStatus" class="hint-text" aria-live="polite">输入相同种子可重建相同初始世界。</p>
+          </form>
         </section>
 
         <section class="control-section compact-actions">
@@ -202,12 +221,12 @@
     </main>
 
     <footer class="footer-note">
-      <span>Genesis v0.2 · 检查点2：确定性实验诊断</span>
-      <p>同一实验种子可复现初始世界和后续随机事件；诊断导出包含种子、随机抽样计数与复现实验链接。</p>
+      <span>Genesis v0.2 · 检查点2：可操作的确定性实验</span>
+      <p>玩家可输入实验种子重建同一初始世界，并复制带种子的复现链接用于对照实验。</p>
     </footer>
   </div>
 
-  <span class="build-version">v0.4.8 · deterministic experiments</span>
+  <span class="build-version">v0.4.9 · deterministic experiment controls</span>
   <button id="exportDiagnosticsButton" class="diagnostics-fab" type="button" title="下载本局生态、遗传属性、相机状态、捕猎和报错记录">导出本局诊断</button>
 </body>
 </html>
