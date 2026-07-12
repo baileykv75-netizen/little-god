@@ -1,0 +1,32 @@
+.group-observer-canvas {
+  position: absolute;
+  inset: 0;
+  z-index: 3;
+  width: 100%;
+  height: 100%;
+  pointer-events: none;
+}
+
+.camera-group-toggle {
+  min-width: 78px;
+  padding: 0 10px;
+  border: 1px solid rgba(255, 255, 255, 0.3);
+  border-radius: 9px;
+  color: rgba(255, 255, 255, 0.82);
+  background: rgba(34, 66, 67, 0.48);
+  font-size: 0.68rem;
+  font-weight: 800;
+  cursor: pointer;
+}
+
+.camera-group-toggle:hover,
+.camera-group-toggle.is-active {
+  color: #fff;
+  border-color: rgba(255, 255, 255, 0.58);
+  background: linear-gradient(135deg, rgba(199, 137, 47, 0.9), rgba(102, 75, 158, 0.9));
+}
+
+.camera-group-toggle:focus-visible {
+  outline: 2px solid rgba(255, 246, 174, 0.95);
+  outline-offset: 2px;
+}
