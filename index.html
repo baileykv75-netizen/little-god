@@ -18,6 +18,7 @@
   <script src="src/genesis/rng-v1.js?v=20260712-1" defer></script>
   <script src="src/genesis/terrain-diagnostics-contract.js?v=20260711-13" defer></script>
   <script src="src/genesis/attributes.js?v=20260711-13" defer></script>
+  <script src="src/genesis/kinship-v1.js?v=20260712-1" defer></script>
   <script src="src/genesis/simulation.js?v=20260711-13" defer></script>
   <script src="src/genesis/active-traits-v1.js?v=20260712-2" defer></script>
   <script src="src/genesis/view-v2.js?v=20260711-13" defer></script>
@@ -222,12 +223,12 @@
     </main>
 
     <footer class="footer-note">
-      <span>Genesis v0.3 · 主动性状：社会性</span>
-      <p>高社会性个体会在空闲移动时靠近同类，低社会性个体会主动拉开距离；行为结果进入实验诊断。</p>
+      <span>Genesis v0.3 · 生命周期与亲缘：近亲回避</span>
+      <p>择偶会排除亲子、同父母和半同胞关系；当附近只有近亲时，本轮繁殖会暂停而不是强行配对。</p>
     </footer>
   </div>
 
-  <span class="build-version">v0.5.0 · active sociality</span>
+  <span class="build-version">v0.5.1 · close-kin avoidance</span>
   <button id="exportDiagnosticsButton" class="diagnostics-fab" type="button" title="下载本局生态、遗传属性、相机状态、捕猎和报错记录">导出本局诊断</button>
 </body>
 </html>
