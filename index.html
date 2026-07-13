@@ -32,6 +32,8 @@
   <script src="src/genesis/ecology-rebalance-v1.js?v=20260712-1" defer></script>
   <script src="src/genesis/active-traits-v1.js?v=20260712-2" defer></script>
   <script src="src/genesis/group-behavior-v1.js?v=20260712-1" defer></script>
+  <script src="src/genesis/group-quality-v1.js?v=20260713-1" defer></script>
+  <script src="src/genesis/experiment-provenance-v1.js?v=20260713-1" defer></script>
   <script src="src/genesis/view-v2.js?v=20260712-3" defer></script>
   <script src="src/genesis/group-observer-v1.js?v=20260712-1" defer></script>
   <script src="src/genesis/terrain-renderer-v2.js?v=20260711-13" defer></script>
@@ -235,12 +237,12 @@
     </main>
 
     <footer class="footer-note">
-      <span>Genesis v0.5 · 食物网稳定性校准</span>
-      <p>低种群食草兽获得有限恢复窗口，猎食兽繁殖受动态猎物比例约束；种子发芽与历史里程碑按真实指标分别记录。</p>
+      <span>Round 51 · 长期沙盒验证基线</span>
+      <p>本轮只增加确定性长期模拟、群体质量测量、干预语义与春季采样修复，不改变群体决策或生态参数。</p>
     </footer>
   </div>
 
-  <span class="build-version" data-build="v0.6.6">v0.6.6 · runtime provenance</span>
+  <span class="build-version" data-build="v0.6.7">v0.6.7 · long-run diagnostics</span>
   <button id="exportDiagnosticsButton" class="diagnostics-fab" type="button" title="下载本局生态、遗传属性、相机状态、捕猎和报错记录">导出本局诊断</button>
 </body>
 </html>
