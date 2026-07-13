@@ -41,16 +41,19 @@ vm.runInContext(
   { filename: "src/genesis/active-traits-v1.js" },
 );
 
-assert.equal(LittleGod.activeTraitModel.version, "active-sociality-memory-v1");
+assert.equal(LittleGod.activeTraitModel.version, "active-sociality-memory-v2");
+assert.equal(LittleGod.activeTraitModel.groupedBehavior, "group-cohere");
 assert.equal(LittleGod.activeTraitModel.highTraitBehavior, "cohere");
 assert.equal(LittleGod.activeTraitModel.lowTraitBehavior, "avoid");
 assert.equal(LittleGod.activeTraitModel.recalledBehavior, "remember");
 assert.equal(LittleGod.activeTraitModel.memoryTrait, "memorySpan");
+assert.equal(LittleGod.activeTraitModel.emergencyStatesOverrideCohesion, true);
+assert.equal(LittleGod.activeTraitModel.groupCohesionOnlyDuringWander, true);
 
-function animal(id, x, y, sociality, memorySpan = 1.5) {
+function animal(id, x, y, sociality, memorySpan = 1.5, type = "grazer") {
   return {
     id,
-    type: "grazer",
+    type,
     x,
     y,
     angle: Math.PI / 2,
@@ -83,7 +86,7 @@ assert.ok(lastMove.desiredAngle < Math.PI / 2,
   "A social grazer should revisit the remembered herd center after losing sight of peers");
 
 const memoryDiagnostics = LittleGod.getActiveTraitDiagnostics();
-assert.equal(memoryDiagnostics.version, "active-sociality-memory-v1");
+assert.equal(memoryDiagnostics.version, "active-sociality-memory-v2");
 assert.equal(memoryDiagnostics.memoryTrait, "memorySpan");
 assert.equal(memoryDiagnostics.rememberedCount, 1);
 assert.equal(memoryDiagnostics.modes.remember, 1);
@@ -96,6 +99,53 @@ assert.equal(socialGrazer.activeBehavior.mode, "alone");
 assert.equal(socialGrazer.activeBehavior.memoryActive, false);
 assert.equal(socialGrazer.observationMemory.socialCenter, undefined,
   "Expired observations must be discarded");
+
+const groupedGrazer = animal(10, 0, 0, 90);
+const groupedMateA = animal(11, 100, 0, 82);
+const groupedMateB = animal(12, 110, 10, 79);
+const nearbyOutsider = animal(13, 4, 0, 95);
+for (const member of [groupedGrazer, groupedMateA, groupedMateB]) {
+  member.groupBehavior = { groupId: "herd-stable-1", role: "herd", size: 3 };
+  member.angle = 0;
+}
+nearbyOutsider.groupBehavior = { groupId: "herd-other", role: "herd", size: 1 };
+groupedGrazer.angle = Math.PI / 2;
+state.grazers = [groupedGrazer, groupedMateA, groupedMateB, nearbyOutsider];
+LittleGod.wander(groupedGrazer, 20, 0.1);
+assert.equal(groupedGrazer.activeBehavior.mode, "group-cohere");
+assert.equal(groupedGrazer.activeBehavior.groupCohesionActive, true);
+assert.equal(groupedGrazer.activeBehavior.groupId, "herd-stable-1");
+assert.equal(groupedGrazer.activeBehavior.groupMemberCount, 3);
+assert.equal(groupedGrazer.activeBehavior.neighborCount, 2);
+assert.equal(groupedGrazer.activeBehavior.separationActive, false);
+assert.ok(groupedGrazer.activeBehavior.groupCenterDistance > 60);
+assert.ok(lastMove.desiredAngle < Math.PI / 2,
+  "An idle group member outside the preferred radius should align and turn toward its own group center");
+assert.ok(Math.abs(groupedGrazer.observationMemory.socialCenter.x - 70) < 1e-9,
+  "The nearby outsider must not distort the persistent group's remembered center");
+assert.ok(Math.abs(groupedGrazer.observationMemory.socialCenter.y - (10 / 3)) < 1e-9);
+
+const groupDiagnostics = LittleGod.getActiveTraitDiagnostics();
+assert.equal(groupDiagnostics.groupCohesionCount, 1);
+assert.equal(groupDiagnostics.separationCount, 0);
+assert.equal(groupDiagnostics.modes["group-cohere"], 1);
+assert.ok(groupDiagnostics.averageGroupCenterDistance > 60);
+
+const crowdedGrazer = animal(20, 0, 0, 90);
+const crowdedMateA = animal(21, 5, 0, 85);
+const crowdedMateB = animal(22, 12, 0, 80);
+for (const member of [crowdedGrazer, crowdedMateA, crowdedMateB]) {
+  member.groupBehavior = { groupId: "herd-crowded", role: "herd", size: 3 };
+  member.angle = 0;
+}
+crowdedGrazer.angle = Math.PI / 2;
+state.grazers = [crowdedGrazer, crowdedMateA, crowdedMateB];
+LittleGod.wander(crowdedGrazer, 20, 0.1);
+assert.equal(crowdedGrazer.activeBehavior.mode, "group-cohere");
+assert.equal(crowdedGrazer.activeBehavior.separationActive, true);
+assert.equal(crowdedGrazer.activeBehavior.separationNeighbors, 2);
+assert.ok(lastMove.desiredAngle > Math.PI / 2,
+  "An overcrowded member should turn away from close groupmates instead of collapsing into one point");
 
 const solitaryGrazer = animal(3, 0, 0, 10);
 const solitaryNeighbor = animal(4, 100, 0, 50);
@@ -117,6 +167,9 @@ const diagnostics = LittleGod.getActiveTraitDiagnostics();
 assert.equal(diagnostics.population, 1);
 assert.equal(diagnostics.activeCount, 1);
 assert.equal(diagnostics.rememberedCount, 0);
+assert.equal(diagnostics.groupCohesionCount, 0);
+assert.equal(diagnostics.separationCount, 0);
+assert.equal(diagnostics.averageGroupCenterDistance, null);
 assert.equal(diagnostics.modes.alone, 1);
 assert.equal(diagnostics.averageSociality, 85);
 
