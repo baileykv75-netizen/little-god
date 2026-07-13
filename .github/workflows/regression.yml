@@ -16,7 +16,9 @@ concurrency:
 jobs:
   test:
     runs-on: ubuntu-latest
-    timeout-minutes: 45
+    timeout-minutes: 60
+    env:
+      ROUND51_WORKERS: 2
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-node@v4
@@ -45,6 +47,7 @@ jobs:
           node --check src/genesis/terrain-diagnostics-contract.js
           node --check src/genesis/terrain-renderer-v2.js
           node --check tools/run-long-ecology.cjs
+          node --check tools/run-long-ecology-parallel.cjs
           node --check tests/group-quality.test.cjs
           node --check tests/experiment-provenance.test.cjs
           node --check tests/long-run-tool.test.cjs
@@ -76,7 +79,7 @@ jobs:
       - name: Deterministic 60-year baseline and replay
         run: |
           rm -rf artifacts/round51
-          node tools/run-long-ecology.cjs \
+          node tools/run-long-ecology-parallel.cjs \
             --years 60 \
             --seeds-per-scenario 2 \
             --step-years 0.001875 \
