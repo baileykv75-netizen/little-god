@@ -4,9 +4,17 @@ on:
   push:
     branches: [main]
 
+permissions:
+  contents: write
+
+concurrency:
+  group: little-god-main-regression
+  cancel-in-progress: false
+
 jobs:
   test:
     runs-on: ubuntu-latest
+    timeout-minutes: 45
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-node@v4
@@ -21,6 +29,8 @@ jobs:
           node --check src/genesis/ecology-stability-v1.js
           node --check src/genesis/hunter-mate-seeking-v1.js
           node --check src/genesis/ecology-rebalance-v1.js
+          node --check src/genesis/group-quality-v1.js
+          node --check src/genesis/experiment-provenance-v1.js
           node --check src/genesis/diagnostics.js
           node --check src/genesis/active-traits-v1.js
           node --check src/genesis/group-behavior-v1.js
@@ -32,6 +42,10 @@ jobs:
           node --check src/genesis/bloodline-observer-v1.js
           node --check src/genesis/terrain-diagnostics-contract.js
           node --check src/genesis/terrain-renderer-v2.js
+          node --check tools/run-long-ecology.cjs
+          node --check tests/group-quality.test.cjs
+          node --check tests/experiment-provenance.test.cjs
+          node --check tests/long-run-tool.test.cjs
       - name: Checkpoint regression tests
         run: |
           node tests/static-assets.test.cjs
@@ -49,8 +63,30 @@ jobs:
           node tests/active-traits.test.cjs
           node tests/group-behavior.test.cjs
           node tests/group-observer.test.cjs
+          node tests/group-quality.test.cjs
+          node tests/experiment-provenance.test.cjs
           node tests/kinship.test.cjs
           node tests/speciation.test.cjs
           node tests/ecotype-observer.test.cjs
           node tests/arcane-bloodline.test.cjs
           node tests/bloodline-observer.test.cjs
+          node tests/long-run-tool.test.cjs
+      - name: Deterministic 60-year baseline and replay
+        run: |
+          rm -rf artifacts/round51
+          node tools/run-long-ecology.cjs \
+            --years 60 \
+            --seeds-per-scenario 2 \
+            --step-years 0.001875 \
+            --output-dir artifacts/round51
+          node -e 'const fs=require("fs"); const c=JSON.parse(fs.readFileSync("artifacts/round51/comparison.json")); if(!c.ecologyBehaviorUnchanged) process.exit(1);'
+      - name: Commit generated long-run evidence
+        if: success() && github.actor != 'github-actions[bot]'
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add LONG_RUN_FINDINGS.md artifacts/round51/baseline.json artifacts/round51/post.json artifacts/round51/comparison.json
+          if ! git diff --cached --quiet; then
+            git commit -m "Record Round 51 long-run findings [skip ci]"
+            git push
+          fi
