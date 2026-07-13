@@ -3,12 +3,14 @@ name: Checkpoint regression
 on:
   push:
     branches: [main]
+  pull_request:
+    branches: [main]
 
 permissions:
   contents: write
 
 concurrency:
-  group: little-god-main-regression
+  group: little-god-regression-${{ github.event.pull_request.number || github.ref }}
   cancel-in-progress: false
 
 jobs:
@@ -80,8 +82,17 @@ jobs:
             --step-years 0.001875 \
             --output-dir artifacts/round51
           node -e 'const fs=require("fs"); const c=JSON.parse(fs.readFileSync("artifacts/round51/comparison.json")); if(!c.ecologyBehaviorUnchanged) process.exit(1);'
+      - name: Upload Round 51 evidence
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: round51-long-run-evidence
+          if-no-files-found: warn
+          path: |
+            LONG_RUN_FINDINGS.md
+            artifacts/round51/*.json
       - name: Commit generated long-run evidence
-        if: success() && github.actor != 'github-actions[bot]'
+        if: success() && github.event_name == 'push' && github.actor != 'github-actions[bot]'
         run: |
           git config user.name "github-actions[bot]"
           git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
