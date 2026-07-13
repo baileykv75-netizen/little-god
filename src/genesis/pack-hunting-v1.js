@@ -41,13 +41,17 @@
       .filter((pack) => pack.members.length >= MIN_PACK_SIZE);
   }
 
-  function visibleObserverCount(pack, prey) {
+  function visibleObservers(pack, prey) {
     return pack.members.filter((hunter) => {
       const senseRadius = Number(hunter.derived?.senseRadius)
         || Number(LG.SPECIES?.hunter?.senseRadius)
         || 260;
       return LG.distanceSquared(hunter, prey) <= senseRadius * senseRadius;
-    }).length;
+    });
+  }
+
+  function visibleObserverCount(pack, prey) {
+    return visibleObservers(pack, prey).length;
   }
 
   function packCenter(pack) {
@@ -100,11 +104,17 @@
     return best;
   }
 
+  function clearSharedAssignment(hunter, packId, targetId) {
+    const assignedByPack = hunter.packHunting?.packId === packId
+      && hunter.packHunting?.targetId === targetId;
+    if (assignedByPack && hunter.targetId === targetId) hunter.targetId = null;
+  }
+
   function clearMemberCoordination(pack, targetId = null) {
     for (const hunter of pack.members) {
-      if (targetId !== null && hunter.targetId === targetId) hunter.targetId = null;
+      if (targetId !== null) clearSharedAssignment(hunter, pack.groupId, targetId);
       hunter.packHunting = {
-        version: "shared-pack-target-v1",
+        version: "shared-pack-target-v2",
         coordinated: false,
         packId: pack.groupId,
         targetId: null,
@@ -126,11 +136,27 @@
       return null;
     }
 
-    const observerCount = visibleObserverCount(pack, prey);
+    const observers = visibleObservers(pack, prey);
+    if (observers.length < MIN_SHARED_OBSERVERS) {
+      if (previous) {
+        targetLosses += 1;
+        targetByPack.delete(pack.groupId);
+      }
+      clearMemberCoordination(pack, previous?.targetId ?? prey.id);
+      return null;
+    }
+
+    const observerIds = new Set(observers.map((hunter) => hunter.id));
     if (!previous) targetAcquisitions += 1;
     else if (previous.targetId !== prey.id) {
       targetSwitches += 1;
       targetAcquisitions += 1;
+    }
+
+    if (previous?.targetId !== undefined && previous.targetId !== prey.id) {
+      for (const hunter of pack.members) {
+        clearSharedAssignment(hunter, pack.groupId, previous.targetId);
+      }
     }
 
     targetByPack.set(pack.groupId, {
@@ -138,23 +164,30 @@
       acquiredYear: previous?.targetId === prey.id
         ? previous.acquiredYear
         : Number(LG.state.year) || 0,
-      observerCount,
-      memberIds: pack.members.map((hunter) => hunter.id),
+      observerCount: observers.length,
+      memberIds: observers.map((hunter) => hunter.id),
     });
 
     for (const hunter of pack.members) {
-      hunter.targetId = prey.id;
+      const coordinated = observerIds.has(hunter.id);
+      if (coordinated) {
+        hunter.targetId = prey.id;
+        memberAssignments += 1;
+      } else {
+        clearSharedAssignment(hunter, pack.groupId, prey.id);
+      }
       hunter.packHunting = {
-        version: "shared-pack-target-v1",
-        coordinated: true,
+        version: "shared-pack-target-v2",
+        coordinated,
         packId: pack.groupId,
-        targetId: prey.id,
-        observerCount,
+        targetId: coordinated ? prey.id : null,
+        sharedTargetId: prey.id,
+        observerCount: observers.length,
         memberCount: pack.members.length,
+        participatingMemberCount: observers.length,
         acquiredYear: targetByPack.get(pack.groupId).acquiredYear,
         year: Number(LG.state.year) || 0,
       };
-      memberAssignments += 1;
     }
     return prey;
   }
@@ -171,7 +204,7 @@
       targetLosses += 1;
       for (const hunter of LG.state.hunters || []) {
         if (hunter.packHunting?.packId !== packId) continue;
-        if (hunter.targetId === target.targetId) hunter.targetId = null;
+        clearSharedAssignment(hunter, packId, target.targetId);
         hunter.packHunting = null;
       }
     }
@@ -217,6 +250,7 @@
       mode: coordinated ? "coordinated" : "uncoordinatedPack",
       observerCount: Number(hunter.packHunting?.observerCount) || 0,
       memberCount: Number(hunter.groupBehavior?.size) || 1,
+      participatingMemberCount: Number(hunter.packHunting?.participatingMemberCount) || 0,
       year: Number(LG.state.year) || 0,
     };
   }
@@ -277,14 +311,15 @@
         return {
           packId: pack.groupId,
           targetId: target.targetId,
-          memberIds: pack.members.map((hunter) => hunter.id),
+          memberIds: [...target.memberIds],
+          packMemberCount: pack.members.length,
           observerCount: target.observerCount,
           acquiredYear: target.acquiredYear,
         };
       })
       .filter(Boolean);
     return {
-      version: "shared-pack-target-v1",
+      version: "shared-pack-target-v2",
       activePacks: packs.length,
       coordinatedPacks: activeTargets.length,
       membersFollowingSharedTarget: activeTargets.reduce((sum, target) => sum + target.memberIds.length, 0),
@@ -304,6 +339,7 @@
       definitions: {
         coordinatedPack: `at least ${MIN_PACK_SIZE} persistent pack members share one prey target`,
         sharedObservation: `at least ${MIN_SHARED_OBSERVERS} pack members can currently sense the prey`,
+        participatingMembers: "only pack members currently sensing the shared prey receive the coordinated target",
         successRate: "successful attempts divided by attempts; null when no attempts exist",
       },
       activeTargets,
@@ -320,11 +356,12 @@
 
   LG.getPackHuntingDiagnostics = diagnostics;
   LG.packHuntingModel = Object.freeze({
-    version: "shared-pack-target-v1",
+    version: "shared-pack-target-v2",
     changesTargetSelection: true,
     changesBaseHuntProbability: false,
     minimumPackSize: MIN_PACK_SIZE,
     minimumSharedObservers: MIN_SHARED_OBSERVERS,
+    targetRecipients: "current-observers-only",
     preservesLocalPreyRatioGate: true,
     preservesIndividualEnergyGate: true,
   });
