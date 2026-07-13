@@ -38,6 +38,7 @@ jobs:
           node --check src/genesis/diagnostics.js
           node --check src/genesis/active-traits-v1.js
           node --check src/genesis/group-behavior-v1.js
+          node --check src/genesis/pack-hunting-v1.js
           node --check src/genesis/group-observer-v1.js
           node --check src/genesis/kinship-v1.js
           node --check src/genesis/speciation-v1.js
@@ -49,6 +50,7 @@ jobs:
           node --check tools/run-long-ecology.cjs
           node --check tools/run-long-ecology-parallel.cjs
           node --check tests/group-quality.test.cjs
+          node --check tests/pack-hunting.test.cjs
           node --check tests/experiment-provenance.test.cjs
           node --check tests/long-run-tool.test.cjs
       - name: Checkpoint regression tests
@@ -69,6 +71,7 @@ jobs:
           node tests/group-behavior.test.cjs
           node tests/group-observer.test.cjs
           node tests/group-quality.test.cjs
+          node tests/pack-hunting.test.cjs
           node tests/experiment-provenance.test.cjs
           node tests/kinship.test.cjs
           node tests/speciation.test.cjs
