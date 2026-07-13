@@ -1,0 +1,10 @@
+{
+  "sameSeedsAndScenarios": true,
+  "ecologyBehaviorUnchanged": true,
+  "mismatches": [],
+  "expectedDiagnosticChanges": [
+    "springDiagnostics.seedGerminated now records the supplemental continuous-grid germination observed by the global budget",
+    "initial conditions distinguish generated defaults, first start, and pre/post-start interventions",
+    "group identities, turnover, distances, split/merge events, and pack/solo hunt outcomes are observation-tracked"
+  ]
+}
