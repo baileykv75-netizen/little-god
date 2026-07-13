@@ -97,7 +97,7 @@ jobs:
           node tools/run-pack-coordination-validation.cjs \
             --years 60 \
             --step-years 0.001875 \
-            --seed round56-pack-coordination-01 \
+            --seed round56-pack-test \
             --output artifacts/round56/pack-coordination.json
           node -e 'const fs=require("fs"); const r=JSON.parse(fs.readFileSync("artifacts/round56/pack-coordination.json")); if(!r.deterministicReplayMatched || r.run.coordinationSummary.packCoordination.targetAcquisitions < 1) process.exit(1);'
       - name: Upload long-run evidence
