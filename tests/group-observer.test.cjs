@@ -37,6 +37,8 @@ const context2d = {
   restore() { drawCalls.push(["restore"]); },
   setLineDash(value) { drawCalls.push(["dash", ...value]); },
   beginPath() { drawCalls.push(["beginPath"]); },
+  moveTo(...args) { drawCalls.push(["moveTo", ...args]); },
+  lineTo(...args) { drawCalls.push(["lineTo", ...args]); },
   arc(...args) { drawCalls.push(["arc", ...args]); },
   fill() { drawCalls.push(["fill"]); },
   stroke() { drawCalls.push(["stroke"]); },
@@ -85,6 +87,16 @@ const LittleGod = {
   },
   refreshSocialGroups() { refreshed += 1; },
   showToast(message) { toast = message; },
+  getPackHuntingDiagnostics() {
+    return {
+      activeTargets: [{
+        packId: "pack-10",
+        targetId: 1,
+        memberIds: [10, 11],
+        observerCount: 2,
+      }],
+    };
+  },
 };
 
 const document = {
@@ -111,11 +123,15 @@ vm.runInContext(
   { filename: "src/genesis/group-observer-v1.js" },
 );
 
-assert.equal(LittleGod.groupObserverModel.version, "group-observer-v1");
+assert.equal(LittleGod.groupObserverModel.version, "group-observer-v2");
 assert.equal(LittleGod.groupObserverModel.toggleable, true);
+assert.equal(LittleGod.groupObserverModel.rendersPackTargets, true);
 assert.equal(LittleGod.getGroupOverlaySnapshot().groups.length, 2);
 assert.deepEqual(LittleGod.getGroupOverlaySnapshot().groups[0].memberIds, [1, 2, 3]);
 assert.deepEqual(LittleGod.getGroupOverlaySnapshot().groups[1].memberIds, [10, 11]);
+assert.equal(LittleGod.getGroupOverlaySnapshot().packTargets.length, 1);
+assert.deepEqual(LittleGod.getGroupOverlaySnapshot().packTargets[0].memberIds, [10, 11]);
+assert.equal(LittleGod.getGroupOverlaySnapshot().packTargets[0].targetId, 1);
 
 for (const listener of loadListeners) listener();
 assert.equal(frame.children.length, 1);
@@ -126,9 +142,14 @@ assert.equal(LittleGod.getGroupObserverDiagnostics().mounted, true);
 LittleGod.setGroupOverlayEnabled(true);
 assert.equal(refreshed, 1);
 assert.equal(LittleGod.getGroupObserverDiagnostics().enabled, true);
+assert.equal(LittleGod.getGroupObserverDiagnostics().visiblePackTargets, 1);
+assert.equal(LittleGod.getGroupObserverDiagnostics().targetLinks, 2);
 assert.ok(drawCalls.some((call) => call[0] === "arc"));
+assert.ok(drawCalls.some((call) => call[0] === "moveTo" && call[1] === 500 && call[2] === 400));
+assert.ok(drawCalls.some((call) => call[0] === "lineTo" && call[1] === 100 && call[2] === 100));
 assert.ok(drawCalls.some((call) => call[0] === "fillText" && call[1] === "兽群 3"));
 assert.ok(drawCalls.some((call) => call[0] === "fillText" && call[1] === "猎群 2"));
+assert.ok(drawCalls.some((call) => call[0] === "fillText" && call[1] === "共同猎物 · 2"));
 assert.equal(cameraControls.children[0].attributes["aria-pressed"], "true");
 assert.equal(cameraControls.children[0].textContent, "隐藏群体");
 
