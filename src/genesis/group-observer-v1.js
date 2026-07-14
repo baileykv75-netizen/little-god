@@ -17,8 +17,7 @@
     ].map((animal) => [animal.id, animal]));
   }
 
-  function collectGroups() {
-    const animals = animalsById();
+  function collectGroups(animals = animalsById()) {
     const groups = new Map();
     for (const animal of animals.values()) {
       const group = animal.groupBehavior;
@@ -61,10 +60,38 @@
       });
   }
 
-  LG.getGroupOverlaySnapshot = () => ({
-    enabled,
-    groups: collectGroups(),
-  });
+  function collectPackTargets(animals = animalsById()) {
+    if (typeof LG.getPackHuntingDiagnostics !== "function") return [];
+    const activeTargets = LG.getPackHuntingDiagnostics()?.activeTargets;
+    if (!Array.isArray(activeTargets)) return [];
+
+    return activeTargets.map((entry) => {
+      const prey = animals.get(entry.targetId);
+      if (!prey || prey.type !== "grazer") return null;
+      const hunters = (Array.isArray(entry.memberIds) ? entry.memberIds : [])
+        .map((id) => animals.get(id))
+        .filter((animal) => animal?.type === "hunter")
+        .sort((a, b) => a.id - b.id);
+      if (!hunters.length) return null;
+      return {
+        packId: entry.packId,
+        targetId: prey.id,
+        observerCount: Number(entry.observerCount) || hunters.length,
+        memberIds: hunters.map((hunter) => hunter.id),
+        hunters: hunters.map((hunter) => ({ id: hunter.id, x: hunter.x, y: hunter.y })),
+        prey: { id: prey.id, x: prey.x, y: prey.y },
+      };
+    }).filter(Boolean);
+  }
+
+  LG.getGroupOverlaySnapshot = () => {
+    const animals = animalsById();
+    return {
+      enabled,
+      groups: collectGroups(animals),
+      packTargets: collectPackTargets(animals),
+    };
+  };
 
   function drawGroup(context, group) {
     const isHerd = group.type === "grazer";
@@ -92,6 +119,34 @@
     context.restore();
   }
 
+  function drawPackTarget(context, target) {
+    const zoom = Math.max(0.45, LG.camera?.zoom || 1);
+    const stroke = "rgba(235, 104, 86, 0.88)";
+
+    context.save();
+    context.strokeStyle = stroke;
+    context.lineWidth = 1.6 / zoom;
+    context.setLineDash([5 / zoom, 4 / zoom]);
+    for (const hunter of target.hunters) {
+      context.beginPath();
+      context.moveTo(hunter.x, hunter.y);
+      context.lineTo(target.prey.x, target.prey.y);
+      context.stroke();
+    }
+    context.setLineDash([]);
+    context.lineWidth = 2 / zoom;
+    context.beginPath();
+    context.arc(target.prey.x, target.prey.y, 17 / zoom, 0, Math.PI * 2);
+    context.stroke();
+
+    context.fillStyle = stroke;
+    context.font = `${Math.max(10, 11 / zoom)}px sans-serif`;
+    context.textAlign = "center";
+    context.textBaseline = "bottom";
+    context.fillText(`共同猎物 · ${target.memberIds.length}`, target.prey.x, target.prey.y - 21 / zoom);
+    context.restore();
+  }
+
   function resizeOverlay() {
     const baseCanvas = document.querySelector("#worldCanvas");
     if (!baseCanvas || !overlayCanvas) return false;
@@ -106,10 +161,13 @@
     overlayContext.clearRect(0, 0, overlayCanvas.width, overlayCanvas.height);
     if (!enabled || !LG.camera) return false;
 
-    const groups = collectGroups();
+    const animals = animalsById();
+    const groups = collectGroups(animals);
+    const packTargets = collectPackTargets(animals);
     overlayContext.save();
     LG.camera.apply(overlayContext);
     for (const group of groups) drawGroup(overlayContext, group);
+    for (const target of packTargets) drawPackTarget(overlayContext, target);
     overlayContext.restore();
     renderedFrames += 1;
     return true;
@@ -153,7 +211,7 @@
     cameraControls.append(toggleButton);
     toggleButton.addEventListener("click", () => {
       const next = LG.setGroupOverlayEnabled(!enabled);
-      LG.showToast?.(next ? "已显示兽群与猎群边界" : "已隐藏群体边界");
+      LG.showToast?.(next ? "已显示群体边界与共同猎物" : "已隐藏群体边界");
     });
 
     const loop = () => {
@@ -164,18 +222,24 @@
     return true;
   }
 
-  LG.getGroupObserverDiagnostics = () => ({
-    version: "group-observer-v1",
-    mounted: Boolean(overlayCanvas && toggleButton),
-    enabled,
-    visibleGroups: collectGroups().length,
-    renderedFrames,
-  });
+  LG.getGroupObserverDiagnostics = () => {
+    const packTargets = collectPackTargets();
+    return {
+      version: "group-observer-v2",
+      mounted: Boolean(overlayCanvas && toggleButton),
+      enabled,
+      visibleGroups: collectGroups().length,
+      visiblePackTargets: packTargets.length,
+      targetLinks: packTargets.reduce((total, target) => total + target.memberIds.length, 0),
+      renderedFrames,
+    };
+  };
   LG.groupObserverModel = Object.freeze({
-    version: "group-observer-v1",
+    version: "group-observer-v2",
     toggleable: true,
     rendersHerds: true,
     rendersPacks: true,
+    rendersPackTargets: true,
     cameraAware: true,
   });
 
