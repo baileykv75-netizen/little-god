@@ -29,16 +29,24 @@
 
 ## 地形
 
-- `art/terrain/grass-base.png`：草地基础块
-- `art/terrain/water-base.png`：水面基础块
-- `art/terrain/riverbank-horizontal.png`：横向河岸
-- `art/terrain/riverbank-vertical.png`：纵向河岸
-- `art/terrain/riverbank-corner-inner.png`：内角河岸
-- `art/terrain/riverbank-corner-outer.png`：外角河岸
+- `art/terrain/grass-base.png`：草地基础块；第 62 轮已作为连续地表的生态遮罩纹理接入主 Canvas。
+- `art/terrain/water-base.png`：水面基础块；当前仍只预览。
+- `art/terrain/riverbank-horizontal.png`：横向河岸；当前仍只预览。
+- `art/terrain/riverbank-vertical.png`：纵向河岸；当前仍只预览。
+- `art/terrain/riverbank-corner-inner.png`：内角河岸；当前仍只预览。
+- `art/terrain/riverbank-corner-outer.png`：外角河岸；当前仍只预览。
+
+### 第 62 轮草地纹理接入约定
+
+- 只接入 `grass-base.png`，不同时引入水面或河岸拼接。
+- 草地纹理在独立、相机同步、`pointer-events: none` 的 Canvas 图层绘制，位于动物精灵层下方。
+- 纹理可见度由现有连续生态数据驱动：鲜草和根系增加覆盖，枯草与啃食压力降低覆盖；四季只调节纹理强度，不修改生态数值。
+- 纹理加载失败、地表数据不可用或遮罩尚未建立时，现有程序地表继续完整显示，不阻断启动和交互。
+- 本轮不修改植物生长、取食、种子、根系、相机、选择、跟随、暂停、速度切换或投放逻辑。
 
 ## 后续接入顺序
 
-1. 用浏览器截图验收鹿精灵在全景与放大状态下的雄/雌/幼体比例、背景抠除、朝向和选择环；若不合格，只调整鹿精灵切片。
-2. 狼与鹿精灵稳定后，为草地、水面与河岸建立独立地形贴图原型。
-3. 先验证基础地块和直线河岸，再单独验证内外转角拼接。
-4. 地形拼接通过截图和回归后，才考虑替换主 Canvas 的程序地表绘制。
+1. 用浏览器截图验收草地纹理在全景和放大状态下的密度、连续性、季节衰减及过度啃食后的裸地反馈。
+2. 草地纹理稳定后，单独接入 `water-base.png`，先验证水面基础块，不同时处理河岸。
+3. 水面稳定后，再分别验证横向、纵向直线河岸；内外转角另起独立迭代。
+4. 地形拼接通过截图和回归后，才考虑扩大主 Canvas 的美术替换范围。
