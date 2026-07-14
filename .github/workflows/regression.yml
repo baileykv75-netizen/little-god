@@ -11,7 +11,7 @@ permissions:
 
 concurrency:
   group: little-god-regression-${{ github.event.pull_request.number || github.ref }}
-  cancel-in-progress: false
+  cancel-in-progress: true
 
 jobs:
   test:
@@ -49,10 +49,12 @@ jobs:
           node --check src/genesis/terrain-renderer-v2.js
           node --check tools/run-long-ecology.cjs
           node --check tools/run-long-ecology-parallel.cjs
+          node --check tools/run-pack-coordination-validation.cjs
           node --check tests/group-quality.test.cjs
           node --check tests/pack-hunting.test.cjs
           node --check tests/experiment-provenance.test.cjs
           node --check tests/long-run-tool.test.cjs
+          node --check tests/pack-long-run-validation.test.cjs
       - name: Checkpoint regression tests
         run: |
           node tests/static-assets.test.cjs
@@ -79,6 +81,7 @@ jobs:
           node tests/arcane-bloodline.test.cjs
           node tests/bloodline-observer.test.cjs
           node tests/long-run-tool.test.cjs
+          node tests/pack-long-run-validation.test.cjs
       - name: Deterministic 60-year baseline and replay
         run: |
           rm -rf artifacts/round51
@@ -107,3 +110,35 @@ jobs:
             git commit -m "Record Round 51 long-run findings [skip ci]"
             git push
           fi
+
+  pack-validation:
+    runs-on: ubuntu-latest
+    timeout-minutes: 60
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
+      - name: Pack validation syntax and smoke test
+        run: |
+          node --check src/genesis/pack-hunting-v1.js
+          node --check tools/run-pack-coordination-validation.cjs
+          node --check tests/pack-long-run-validation.test.cjs
+          node tests/pack-hunting.test.cjs
+          node tests/pack-long-run-validation.test.cjs
+      - name: Deterministic 60-year pack coordination validation
+        run: |
+          rm -rf artifacts/round56
+          node tools/run-pack-coordination-validation.cjs \
+            --years 60 \
+            --step-years 0.001875 \
+            --seed round56-pack-test \
+            --output artifacts/round56/pack-coordination.json
+          node -e 'const fs=require("fs"); const r=JSON.parse(fs.readFileSync("artifacts/round56/pack-coordination.json")); if(!r.deterministicReplayMatched || r.run.coordinationSummary.packCoordination.targetAcquisitions < 1) process.exit(1);'
+      - name: Upload Round 56 pack evidence
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: round56-pack-validation-evidence
+          if-no-files-found: error
+          path: artifacts/round56/pack-coordination.json
