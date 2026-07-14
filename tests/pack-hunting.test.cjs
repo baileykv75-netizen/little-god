@@ -5,6 +5,7 @@ const assert = require("assert");
 const loadListeners = [];
 let updateSnapshot = null;
 let killTargetOnUpdate = false;
+let simulatedAttempts = null;
 
 function hunter(id, x, y, groupId = null, groupSize = 1) {
   return {
@@ -74,6 +75,19 @@ const LittleGod = {
       coordinated: entry.packHunting?.coordinated === true,
       sharedTargetId: entry.packHunting?.sharedTargetId ?? null,
     }));
+    if (simulatedAttempts) {
+      for (const attempt of simulatedAttempts) {
+        const actor = state.hunters.find((entry) => entry.id === attempt.hunterId);
+        actor.state = "chase";
+        actor.targetId = attempt.targetId;
+        actor.attackCooldown = 0.16;
+        actor.packHunting.coordinated = attempt.coordinated;
+        actor.packHunting.targetId = attempt.coordinated ? attempt.targetId : null;
+        LittleGod.incrementMetric("huntAttempts");
+        LittleGod.incrementMetric(attempt.success ? "huntSuccesses" : "huntFailures");
+      }
+      simulatedAttempts = null;
+    }
     if (killTargetOnUpdate) {
       const targetId = state.hunters[0].targetId;
       state.grazers = state.grazers.filter((entry) => entry.id !== targetId);
@@ -118,6 +132,7 @@ assert.equal(LittleGod.packHuntingModel.changesTargetSelection, true);
 assert.equal(LittleGod.packHuntingModel.changesBaseHuntProbability, false);
 assert.equal(LittleGod.packHuntingModel.minimumSharedObservers, 2);
 assert.equal(LittleGod.packHuntingModel.targetRecipients, "current-observers-only");
+assert.equal(LittleGod.packHuntingModel.huntAttribution, "cooldown-transition-v1");
 assert.equal(LittleGod.packHuntingModel.preservesLocalPreyRatioGate, true);
 
 LittleGod.updateHunters(0.1);
@@ -147,6 +162,7 @@ assert.equal(diagnostics.activeTargets[0].targetId, 101);
 assert.equal(diagnostics.activeTargets[0].observerCount, 2);
 assert.equal(diagnostics.hunts.coordinatedPackHuntSuccessRate, null);
 assert.ok(diagnostics.definitions.participatingMembers.includes("currently sensing"));
+assert.ok(diagnostics.definitions.huntAttribution.includes("cooldown transitioned"));
 
 state.hunters[0].state = "chase";
 state.hunters[0].attackCooldown = 0.16;
@@ -172,6 +188,26 @@ diagnostics = LittleGod.getPackHuntingDiagnostics();
 assert.equal(diagnostics.hunts.uncoordinatedPackHunts, 1);
 assert.equal(diagnostics.hunts.uncoordinatedPackHuntSuccesses, 0);
 assert.equal(diagnostics.hunts.uncoordinatedPackHuntSuccessRate, 0);
+
+state.hunters[0].attackCooldown = 0;
+state.hunters[1].attackCooldown = 0;
+simulatedAttempts = [
+  { hunterId: 1, targetId: 101, coordinated: true, success: true },
+  { hunterId: 2, targetId: 101, coordinated: false, success: false },
+];
+LittleGod.updateHunters(0.1);
+diagnostics = LittleGod.getPackHuntingDiagnostics();
+assert.equal(diagnostics.hunts.coordinatedPackHunts, 2,
+  "The first same-frame attempt should remain attributed to hunter 1");
+assert.equal(diagnostics.hunts.coordinatedPackHuntSuccesses, 2);
+assert.equal(diagnostics.hunts.uncoordinatedPackHunts, 2,
+  "The second same-frame attempt must be attributed to hunter 2, not guessed as hunter 1");
+assert.equal(diagnostics.hunts.uncoordinatedPackHuntSuccesses, 0);
+state.hunters[0].state = "wander";
+state.hunters[1].state = "wander";
+state.hunters[0].attackCooldown = 0;
+state.hunters[1].attackCooldown = 0;
+state.hunters[1].targetId = null;
 
 state.hunters[1].x = 900;
 LittleGod.updateHunters(0.1);

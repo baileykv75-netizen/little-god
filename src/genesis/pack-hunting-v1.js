@@ -11,6 +11,8 @@
   const MIN_SHARED_OBSERVERS = 2;
   const targetByPack = new Map();
   let pendingHunt = null;
+  let updateCooldownBaseline = null;
+  let attributedHunterIds = null;
   let updates = 0;
   let targetAcquisitions = 0;
   let targetSwitches = 0;
@@ -235,8 +237,42 @@
       ))[0] || null;
   }
 
+  function beginUpdateAttribution() {
+    updateCooldownBaseline = new Map((LG.state.hunters || []).map((hunter) => [
+      hunter.id,
+      Number(hunter.attackCooldown) || 0,
+    ]));
+    attributedHunterIds = new Set();
+  }
+
+  function endUpdateAttribution() {
+    updateCooldownBaseline = null;
+    attributedHunterIds = null;
+  }
+
+  function transitionAttemptingHunter() {
+    if (!updateCooldownBaseline || !attributedHunterIds) return likelyAttemptingHunter();
+    const attackCooldown = Number(LG.SPECIES?.hunter?.attackCooldown) || 0.16;
+    const candidates = (LG.state.hunters || [])
+      .filter((hunter) => {
+        if (attributedHunterIds.has(hunter.id) || hunter.state !== "chase") return false;
+        const current = Number(hunter.attackCooldown) || 0;
+        const previous = updateCooldownBaseline.get(hunter.id) || 0;
+        return current >= attackCooldown * 0.9
+          && current - previous >= attackCooldown * 0.4;
+      })
+      .sort((a, b) => {
+        const aIncrease = Number(a.attackCooldown) - (updateCooldownBaseline.get(a.id) || 0);
+        const bIncrease = Number(b.attackCooldown) - (updateCooldownBaseline.get(b.id) || 0);
+        return bIncrease - aIncrease || a.id - b.id;
+      });
+    const hunter = candidates[0] || null;
+    if (hunter) attributedHunterIds.add(hunter.id);
+    return hunter;
+  }
+
   function classifyHuntAttempt() {
-    const hunter = likelyAttemptingHunter();
+    const hunter = transitionAttemptingHunter();
     if (!hunter) return null;
     const inPack = hunter.groupBehavior?.role === "pack"
       && Number(hunter.groupBehavior?.size) >= MIN_PACK_SIZE;
@@ -274,7 +310,13 @@
   LG.updateHunters = (dt) => {
     const packs = preparePackTargets();
     updates += 1;
-    const result = baseUpdateHunters(dt);
+    beginUpdateAttribution();
+    let result;
+    try {
+      result = baseUpdateHunters(dt);
+    } finally {
+      endUpdateAttribution();
+    }
     reconcileAfterUpdate(packs);
     return result;
   };
@@ -282,6 +324,7 @@
   function reset() {
     targetByPack.clear();
     pendingHunt = null;
+    endUpdateAttribution();
     updates = 0;
     targetAcquisitions = 0;
     targetSwitches = 0;
@@ -340,6 +383,7 @@
         coordinatedPack: `at least ${MIN_PACK_SIZE} persistent pack members share one prey target`,
         sharedObservation: `at least ${MIN_SHARED_OBSERVERS} pack members can currently sense the prey`,
         participatingMembers: "only pack members currently sensing the shared prey receive the coordinated target",
+        huntAttribution: "the hunter whose attack cooldown transitioned during the current update owns the attempt",
         successRate: "successful attempts divided by attempts; null when no attempts exist",
       },
       activeTargets,
@@ -362,6 +406,7 @@
     minimumPackSize: MIN_PACK_SIZE,
     minimumSharedObservers: MIN_SHARED_OBSERVERS,
     targetRecipients: "current-observers-only",
+    huntAttribution: "cooldown-transition-v1",
     preservesLocalPreyRatioGate: true,
     preservesIndividualEnergyGate: true,
   });
